@@ -2,13 +2,16 @@
 
 LoRaModem modem;
 #include "arduino_secrets.h"
-String appEui = SECRET_APP_EUI;
-String appKey = SECRET_APP_KEY;
+//String appEui = SECRET_APP_EUI;
+//String appKey = SECRET_APP_KEY;
+
+String devAddr = DEV_ADDR;
+String nwkSKey = NET_SESSION_KEY;
+String appSKey = APP_SESSION_KEY;
 
 void setup() {
   Serial.begin(115200);
   while (!Serial);
-  // change this to your regional band (eg. US915, AS923, ...)
   if (!modem.begin(EU868)) {
     Serial.println("Failed to start module");
     while (1) {}
@@ -18,7 +21,8 @@ void setup() {
   Serial.print("Your device EUI is: ");
   Serial.println(modem.deviceEUI());
 
-  int connected = modem.joinOTAA(appEui, appKey);
+  //int connected = modem.joinOTAA(appEui, appKey);
+  int connected = modem.joinABP(devAddr, nwkSKey, appSKey);
   while (!connected) {
     Serial.println("Something went wrong; are you indoor? Move near a window and retry");
     while (1) {}
@@ -60,4 +64,5 @@ void loop() {
     Serial.print(" ");
   }
   Serial.println();
+  delay(10000);
 }
