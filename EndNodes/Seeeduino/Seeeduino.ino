@@ -1,8 +1,17 @@
+#include "Zanshin_BME680.h"  // Include the BME680 Sensor library
 #include <LoRaWan.h>
 #include "lora_secrets.h" 
 
 char buffer[256];
 
+BME680_Class BME680;  // Create an instance of the BME680 class
+static int32_t  temp, humidity, pressure, gas;  // BME readings
+
+
+int i = 0;
+char packetBuffer[40]; // t19.11h43.39p931.14g397.29f8000a10t10 - ~37 characters
+
+bool result = false;
 void setup(void)
 {     
  
@@ -25,8 +34,8 @@ void setup(void)
     lora.setDataRate(DR5, EU868);
  
     lora.setChannel(0, 868.1);
-    lora.setChannel(2, 868.3);
-    lora.setChannel(2, 868.5);
+    // lora.setChannel(2, 868.3);
+    // lora.setChannel(2, 868.5);
  
     lora.setReceiceWindowFirst(0, 868.1);
     lora.setReceiceWindowSecond(869.5, DR5);
@@ -35,20 +44,28 @@ void setup(void)
     lora.setJoinDutyCycle(false);
  
     lora.setPower(14);
+    delay(1000);
+    
+    #include "BME680_SETUP.hh"
+        
 }
 
-String str;
-int i = 0;
-char buff[20];
 void loop(void)
 {   
-    bool result = false;
-    delay(2000);
-    i++;
-    str = "Hello World! " + i;
-    str.toCharArray(buff, 20);
-    SerialUSB.println(str);
-    result = lora.transferPacket("t:2700,p:1700,h:5000,g:156,f:440,a:230", 10);
+
+  	BME680.getSensorData(temp, humidity, pressure, gas);  // Get readings 
+    result = false;
+    
+    snprintf((char*)packetBuffer, 40, "t%d.%dh%d.%dp%d.%dg%d.%df%da%dt%d", 
+    		(int8_t)(temp / 100), (uint8_t)(temp % 100),
+    		(int8_t)(humidity / 1000), (uint16_t)((humidity % 1000) / 10),
+    		(int16_t)(pressure / 100), (uint8_t)(pressure % 100),
+    		(int16_t)(gas / 100), (uint8_t)(gas % 100),
+    		8000, 10, 10);
+    
+    SerialUSB.println(packetBuffer);
+    result = lora.transferPacket(packetBuffer, 10);
+    //result = lora.transferPacket("t:2700,p:1700,h:5000,g:156,f:440,a:230", 10);
  
     if(result)
     {
@@ -74,5 +91,6 @@ void loop(void)
             SerialUSB.println();
         }
     }
-    delay(1000);
+    i++;
+    delay(10000);
 }
