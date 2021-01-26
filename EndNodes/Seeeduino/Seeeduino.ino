@@ -9,7 +9,7 @@ static int32_t  temp, humidity, pressure, gas;  // BME readings
 
 
 int i = 0;
-char packetBuffer[40]; // t19.11h43.39p931.14g397.29f8000a10t10 - ~37 characters
+char packetBuffer[48]; // t19.11h43.39p931.14g397.29f8000a10s10 - ~37 characters
 
 bool result = false;
 void setup(void)
@@ -34,8 +34,8 @@ void setup(void)
     lora.setDataRate(DR5, EU868);
  
     lora.setChannel(0, 868.1);
-    // lora.setChannel(2, 868.3);
-    // lora.setChannel(2, 868.5);
+    lora.setChannel(2, 868.1);
+    lora.setChannel(2, 868.1);
  
     lora.setReceiceWindowFirst(0, 868.1);
     lora.setReceiceWindowSecond(869.5, DR5);
@@ -56,7 +56,7 @@ void loop(void)
   	BME680.getSensorData(temp, humidity, pressure, gas);  // Get readings 
     result = false;
     
-    snprintf((char*)packetBuffer, 40, "t%d.%dh%d.%dp%d.%dg%d.%df%da%dt%d", 
+    snprintf((char*)packetBuffer, 48, "t%d.%d,h%d.%d,p%d.%d,g%d.%d,f%d,a%d,s%d", 
     		(int8_t)(temp / 100), (uint8_t)(temp % 100),
     		(int8_t)(humidity / 1000), (uint16_t)((humidity % 1000) / 10),
     		(int16_t)(pressure / 100), (uint8_t)(pressure % 100),
@@ -92,5 +92,5 @@ void loop(void)
         }
     }
     i++;
-    delay(10000);
+    delay(1000);
 }

@@ -22,33 +22,33 @@ void setup() {
   Serial.println(modem.deviceEUI());
 
   //int connected = modem.joinOTAA(appEui, appKey);
-  int connected = modem.joinABP(devAddr, nwkSKey, appSKey);
-  while (!connected) {
-    Serial.println("Something went wrong; are you indoor? Move near a window and retry");
-    while (1) {}
-  }
-
+  modem.setPort(3);
   // Set poll interval to 60 secs.
   modem.minPollInterval(60);
   // NOTE: independently by this setting the modem will
   // not allow to send more than one message every 2 minutes,
   // this is enforced by firmware and can not be changed.
+  int connected = modem.joinABP(devAddr, nwkSKey, appSKey);
+  while (!connected) {
+    Serial.println("Something went wrong; are you indoor? Move near a window and retry");
+    while (1) {}
+  }
 }
 
 void loop() {
   int err;
   modem.beginPacket();
   modem.print("Hello, world!");
-  err = modem.endPacket(true);
+  err = modem.endPacket(false);
   if (err > 0) {
     Serial.println("Message sent correctly!");
   } else {
     Serial.println("Error sending message :(");
-    Serial.println("(you may send a limited amount of messages per minute, depending on the signal strength");
-    Serial.println("it may vary from 1 message every couple of seconds to 1 message every minute)");
+    //Serial.println("(you may send a limited amount of messages per minute, depending on the signal strength");
+    //Serial.println("it may vary from 1 message every couple of seconds to 1 message every minute)");
   }
   delay(1000);
-  if (!modem.available()) {
+ /* if (!modem.available()) {
     Serial.println("No downlink message received at this time.");
     return;
   }
@@ -62,7 +62,6 @@ void loop() {
     Serial.print(rcv[j] >> 4, HEX);
     Serial.print(rcv[j] & 0xF, HEX);
     Serial.print(" ");
-  }
+  }*/
   Serial.println();
-  delay(10000);
 }
