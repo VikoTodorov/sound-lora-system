@@ -12,62 +12,45 @@ function Decode(fPort, bytes, variables) {
     var frequency;
     var amplitude;
     var seconds;
-    var message = atob(bytes);
-    message = message.split(/(?=[thpgfas])/g);
-  
-    for (i of message) {
-        switch(i[0]) {
-            case 't':
-                var str = i.slice(1);
-                temp = parseFloat(str);
-                break;
-            case 'h':
-                var str = i.slice(1);
-                humidity = parseFloat(str);
-                break;
-            case 'p':
-                var str = i.slice(1);
-                pressure = parseFloat(str);
-                break;
-            case 'g':
-                var str = i.slice(1);
-                gas = parseFloat(str);
-                break;
-            case 'f':
-                var str = i.slice(1);
-                frequency = parseFloat(str);
-                break;
-            case 'a':
-                var str = i.slice(1);
-                amplitude = parseFloat(str);
-                break;
-            case 's':
-                var str = i.slice(1);
-                seconds = parseFloat(str);
-                break;
-          }
-    }   
 
-    if (!isNaN(temp)) {
-        jsonObject.temp = temp;
+    // FLAGS used to find what is in payload
+    var TEMP_FLAG = 64;    // 01000000
+    var HUM_FLAG = 32;     // 00100000
+    var PRES_FLAG = 16;    // 00010000
+    var GAS_FLAG = 8;      // 00001000
+    var FREQ_FLAG = 4;     // 00000100
+    var AMP_FLAG = 2;      // 00000010
+    var S_FLAG = 1;        // 00000001
+
+    var offset = 0;
+
+    if (bytes[0] & TEMP_FLAG) {
+        jsonObject.temperature = (bytes[offset+1]<<24) | (bytes[offset+2]<<16) | (bytes[offset+3]<<8) | (bytes[offset+4]);
+        offset += 4;
     }
-    if (!isNaN(humidity)) {
-        jsonObject.humidity = humidity;
+    if (bytes[0] & HUM_FLAG) {
+        jsonObject.humidity = (bytes[offset+1]<<24) | (bytes[offset+2]<<16) | (bytes[offset+3]<<8) | (bytes[offset+4]);
+        offset += 4;
     }
-    if (!isNaN(pressure)) {
-        jsonObject.pressure = pressure;
+    if (bytes[0] & PRES_FLAG) {
+        jsonObject.pressure = (bytes[offset+1]<<24) | (bytes[offset+2]<<16) | (bytes[offset+3]<<8) | (bytes[offset+4]);
+        offset += 4;
     }
-    if (!isNaN(gas)) {
-        jsonObject.gas = gas;
+    if (bytes[0] & GAS_FLAG) {
+    jsonObject.gas = (bytes[offset+1]<<24) | (bytes[offset+2]<<16) | (bytes[offset+3]<<8) | (bytes[offset+4]);
+        offset += 4;
     }
-    if (!isNaN(frequency)) {
-        jsonObject.frequency = frequency;
+    if (bytes[0] & FREQ_FLAG) {
+      jsonObject.frequency = (bytes[offset+1]<<8) | (bytes[offset+2]);
+        offset += 2;
     }
-    if (!isNaN(amplitude)) {
-        jsonObject.amplitude = amplitude;
+    if (bytes[0] & AMP_FLAG) {
+        jsonObject.amplitude = (bytes[offset+1]<<8) | (bytes[offset+2]);
+        offset += 2;
     }
-    if (!isNaN(seconds)) {
-        jsonObject.seconds = seconds;
+    if (bytes[0] & S_FLAG) {
+        jsonObject.seconds = (bytes[offset+1]<<8) | (bytes[offset+2]);
     }
+
     return jsonObject;
 }

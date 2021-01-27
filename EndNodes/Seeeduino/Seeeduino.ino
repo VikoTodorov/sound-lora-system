@@ -5,15 +5,29 @@
 char buffer[256];
 
 BME680_Class BME680;  // Create an instance of the BME680 class
-static int32_t  temp, humidity, pressure, gas;  // BME readings
+static int32_t tempReading, humReading, pressReading, gasReading;  // BME readings
 
+unsigned char packetBuffer[48]; 
+bool tempFlag = false;
+bool humFlag = false;
+bool pressFlag = false;
+bool gasFlag = false;
+bool freqFlag = false;
+bool ampFlag = false;
+bool secondsFlag = false;
 
-int i = 0;
-char packetBuffer[48]; // t19.11h43.39p931.14g397.29f8000a10s10 - ~37 characters
+uint8_t TEMP_HEAD = 6;
+uint8_t HUM_HEAD = 5;
+uint8_t PRESS_HEAD = 4;
+uint8_t GAS_HEAD = 3;
+uint8_t FREQ_HEAD = 2;
+uint8_t AMP_HEAD = 1;
+uint8_t S_HEAD = 0;
 
 bool result = false;
-void setup(void)
-{     
+
+char str[128];
+void setup(void) {     
  
     SerialUSB.begin(115200);
     while(!SerialUSB);
@@ -50,20 +64,74 @@ void setup(void)
         
 }
 
-void loop(void)
-{   
+void loop(void) {   
+    uint8_t amplitude = 80;
+    uint8_t frequency = 4440;
+    uint8_t seconds = 10;
 
-  	BME680.getSensorData(temp, humidity, pressure, gas);  // Get readings 
+  	BME680.getSensorData(tempReading, humReading, pressReading, gasReading);  // Get readings
+    float temp = (float)tempReading / 100;
+    float humidity = (float)humReading / 1000;
+    float pressure = (float)pressReading / 100;
+    float gas = (float)gasReading / 100;
+    uint8_t offset = 1;
+
+    
+    tempFlag = true;
+    humFlag = true;
+    pressFlag = true;
+    gasFlag = true;
+    freqFlag = true;
+    ampFlag = true;
+    secondsFlag = true; 
+    if (tempFlag) {
+        packetBuffer[0] |= (1 << TEMP_HEAD);
+        memmove(packetBuffer+offset, &temp, sizeof(temp));
+        tempFlag = false;
+        offset += 4;
+    }
+    if (humFlag) {
+        packetBuffer[0] |= (1 << HUM_HEAD);
+        memmove(packetBuffer+offset, &humidity, sizeof(humidity));
+        humFlag = false;
+        offset += 4;
+    }
+    if (pressFlag) {
+        packetBuffer[0] |= (1 << PRESS_HEAD);
+        memmove(packetBuffer+offset, &pressure, sizeof(pressure));
+        pressFlag = false;
+        offset += 4;
+    }
+    if (gasFlag) {
+        packetBuffer[0] |= (1 << GAS_HEAD);
+        memmove(packetBuffer+offset, &gas, sizeof(gas));
+        gasFlag = false;
+        offset += 4;
+    }
+    if (freqFlag) {
+        packetBuffer[0] |= (1 << FREQ_HEAD);
+        memmove(packetBuffer+offset, &frequency, sizeof(frequency));
+        freqFlag = false;
+        offset += 2;
+    }
+    if (ampFlag) {
+        packetBuffer[0] |= (1 << AMP_HEAD);
+        memmove(packetBuffer+offset, &amplitude, sizeof(amplitude));
+        ampFlag = false;
+        offset += 2;
+    }
+    if (secondsFlag) {
+        packetBuffer[0] |= (1 << S_HEAD);
+        memmove(packetBuffer+offset, &seconds, sizeof(seconds));
+        secondsFlag = false;
+    }
+
     result = false;
     
-    snprintf((char*)packetBuffer, 48, "t%d.%d,h%d.%d,p%d.%d,g%d.%d,f%d,a%d,s%d", 
-    		(int8_t)(temp / 100), (uint8_t)(temp % 100),
-    		(int8_t)(humidity / 1000), (uint16_t)((humidity % 1000) / 10),
-    		(int16_t)(pressure / 100), (uint8_t)(pressure % 100),
-    		(int16_t)(gas / 100), (uint8_t)(gas % 100),
-    		8000, 10, 10);
+    snprintf((char*)str, 128, "t%f, h%f, p%f, g%f, f%d, a%d, s%d", 
+    		temp, humidity, pressure, gas, frequency, amplitude, seconds);
     
-    SerialUSB.println(packetBuffer);
+    SerialUSB.println(str);
     result = lora.transferPacket(packetBuffer, 10);
     //result = lora.transferPacket("t:2700,p:1700,h:5000,g:156,f:440,a:230", 10);
  
@@ -91,6 +159,5 @@ void loop(void)
             SerialUSB.println();
         }
     }
-    i++;
-    delay(1000);
+    delay(10000);
 }
