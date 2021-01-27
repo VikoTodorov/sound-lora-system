@@ -5,7 +5,7 @@
 char buffer[256];
 
 BME680_Class BME680;  // Create an instance of the BME680 class
-static int32_t tempReading, humReading, pressReading, gasReading;  // BME readings
+static int32_t temp, humidity, pressure, gas;  // BME readings
 
 unsigned char packetBuffer[48]; 
 bool tempFlag = false;
@@ -48,7 +48,7 @@ void setup(void) {
     lora.setDataRate(DR5, EU868);
  
     lora.setChannel(0, 868.1);
-    lora.setChannel(2, 868.1);
+    lora.setChannel(1, 868.1);
     lora.setChannel(2, 868.1);
  
     lora.setReceiceWindowFirst(0, 868.1);
@@ -65,18 +65,13 @@ void setup(void) {
 }
 
 void loop(void) {   
-    uint8_t amplitude = 80;
-    uint8_t frequency = 4440;
-    uint8_t seconds = 10;
+    uint16_t amplitude = 80;
+    uint16_t frequency = 4440;
+    uint16_t seconds = 10;
 
-  	BME680.getSensorData(tempReading, humReading, pressReading, gasReading);  // Get readings
-    float temp = (float)tempReading / 100;
-    float humidity = (float)humReading / 1000;
-    float pressure = (float)pressReading / 100;
-    float gas = (float)gasReading / 100;
+  	BME680.getSensorData(temp, humidity, pressure, gas);  // Get readings
     uint8_t offset = 1;
 
-    
     tempFlag = true;
     humFlag = true;
     pressFlag = true;
@@ -128,7 +123,7 @@ void loop(void) {
 
     result = false;
     
-    snprintf((char*)str, 128, "t%f, h%f, p%f, g%f, f%d, a%d, s%d", 
+    snprintf((char*)str, 128, "t%d, h%d, p%d, g%d, f%d, a%d, s%d", 
     		temp, humidity, pressure, gas, frequency, amplitude, seconds);
     
     SerialUSB.println(str);
