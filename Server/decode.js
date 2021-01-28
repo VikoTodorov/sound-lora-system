@@ -5,13 +5,6 @@
 // The function must return an object, e.g. {"temperature": 22.5}
 function Decode(fPort, bytes, variables) {
     var jsonObject = new Object();
-    var temp;
-    var humidity;
-    var pressure;
-    var gas;
-    var frequency;
-    var amplitude;
-    var seconds;
 
     // FLAGS used to find what is in payload
     var TEMP_FLAG = 64;    // 01000000
@@ -20,7 +13,7 @@ function Decode(fPort, bytes, variables) {
     var GAS_FLAG = 8;      // 00001000
     var FREQ_FLAG = 4;     // 00000100
     var AMP_FLAG = 2;      // 00000010
-    var S_FLAG = 1;        // 00000001
+    var TEST_FLAG = 1;        // 00000001
 
     var offset = 0;
 
@@ -52,8 +45,8 @@ function Decode(fPort, bytes, variables) {
         jsonObject.amplitude = (bytes[offset+2] << 8) | bytes[offset+1];
         offset += 2;
     }
-    if (bytes[0] & S_FLAG) {
-        jsonObject.seconds = (bytes[offset+2] << 8) | bytes[offset+1];
+    if (bytes[0] & TEST_FLAG) {
+        jsonObject.counter = (bytes[offset+2] << 8) | bytes[offset+1];
     }
 
     return jsonObject;

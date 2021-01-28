@@ -14,7 +14,7 @@ bool pressFlag = false;
 bool gasFlag = false;
 bool freqFlag = false;
 bool ampFlag = false;
-bool secondsFlag = false;
+bool testFlag = false;
 
 uint8_t TEMP_HEAD = 6;
 uint8_t HUM_HEAD = 5;
@@ -22,7 +22,7 @@ uint8_t PRESS_HEAD = 4;
 uint8_t GAS_HEAD = 3;
 uint8_t FREQ_HEAD = 2;
 uint8_t AMP_HEAD = 1;
-uint8_t S_HEAD = 0;
+uint8_t TEST_HEAD = 0;
 
 bool result = false;
 
@@ -64,10 +64,10 @@ void setup(void) {
         
 }
 
+uint16_t counter = 0;
 void loop(void) {   
     uint16_t amplitude = 80;
     uint16_t frequency = 4440;
-    uint16_t seconds = 10;
 
   	BME680.getSensorData(temp, humidity, pressure, gas);  // Get readings
     uint8_t offset = 1;
@@ -78,7 +78,7 @@ void loop(void) {
     gasFlag = true;
     freqFlag = true;
     ampFlag = true;
-    secondsFlag = true; 
+    testFlag = true; 
     if (tempFlag) {
         packetBuffer[0] |= (1 << TEMP_HEAD);
         memmove(packetBuffer+offset, &temp, sizeof(temp));
@@ -115,10 +115,10 @@ void loop(void) {
         ampFlag = false;
         offset += 2;
     }
-    if (secondsFlag) {
-        packetBuffer[0] |= (1 << S_HEAD);
-        memmove(packetBuffer+offset, &seconds, sizeof(seconds));
-        secondsFlag = false;
+    if (testFlag) {
+        packetBuffer[0] |= (1 << TEST_HEAD);
+        memmove(packetBuffer+offset, &counter, sizeof(counter));
+        testFlag = false;
     }
 
     result = false;
@@ -154,5 +154,6 @@ void loop(void) {
             SerialUSB.println();
         }
     }
+    counter++;
     delay(10000);
 }
