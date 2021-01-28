@@ -123,11 +123,11 @@ void loop(void) {
 
     result = false;
     
-    snprintf((char*)str, 128, "t%d, h%d, p%d, g%d, f%d, a%d, s%d", 
-    		temp, humidity, pressure, gas, frequency, amplitude, seconds);
+    //snprintf((char*)str, 128, "t%d, h%d, p%d, g%d, f%d, a%d, s%d", 
+    		//temp, humidity, pressure, gas, frequency, amplitude, seconds);
     
-    SerialUSB.println(str);
-    result = lora.transferPacket(packetBuffer, 10);
+    //SerialUSB.println(str);
+    result = lora.transferPacket(packetBuffer, 100);
     //result = lora.transferPacket("t:2700,p:1700,h:5000,g:156,f:440,a:230", 10);
  
     if(result)
