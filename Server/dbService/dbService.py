@@ -30,10 +30,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def up(self, body):
         uplinkData = self.unmarshal(body, integration.UplinkEvent())
-        writeToDBFlag = dbWrite(application_name, uplinkData.dev_eui.hex(),
-                                uplinkData.object_json)
-
-        if writeToDBFlag:
+        flag = dbWrite(uplinkData.application_name, uplinkData.dev_eui.hex(),
+                   uplinkData.object_json)
+        if flag:
             self.send_response(200, "OK!")
             self.end_headers()
         else:
