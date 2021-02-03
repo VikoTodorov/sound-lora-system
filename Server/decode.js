@@ -23,17 +23,11 @@ function Decode(fPort, bytes, variables) {
         jsonObject.temperature.toFixed(2)
         offset += 4;
     }
-    else {
-        jsonObject.temperature = null;
-    }
     if (bytes[0] & HUM_FLAG) {
         jsonObject.humidity = (bytes[offset+4] << 24) | (bytes[offset+3] << 16) | (bytes[offset+2] << 8) | bytes[offset+1];
         jsonObject.humidity /= 1000;
         jsonObject.humidity.toFixed(2)
         offset += 4;
-    }
-    else {
-        jsonObject.humidity = null;
     }
     if (bytes[0] & PRES_FLAG) {
         jsonObject.pressure = (bytes[offset+4] << 24) | (bytes[offset+3] << 16) | (bytes[offset+2] << 8) | bytes[offset+1];
@@ -41,37 +35,22 @@ function Decode(fPort, bytes, variables) {
         jsonObject.pressure.toFixed(2)
         offset += 4;
     }
-    else {
-        jsonObject.pressure = null;
-    }
     if (bytes[0] & GAS_FLAG) {
         jsonObject.gas = (bytes[offset+4] << 24) | (bytes[offset+3] << 16) | (bytes[offset+2] << 8) | bytes[offset+1];
         jsonObject.gas;
         jsonObject.gas.toFixed(2)
         offset += 4;
     }
-    else {
-        jsonObject.gas = null;
-    }
     if (bytes[0] & FREQ_FLAG) {
         jsonObject.frequency = (bytes[offset+4] << 24) | (bytes[offset+3] << 16) | (bytes[offset+2] << 8) | bytes[offset+1];
         offset += 4;
-    }
-    else {
-        jsonObject.frequency = null;
     }
     if (bytes[0] & AMP_FLAG) {
         jsonObject.amplitude = (bytes[offset+4] << 24) | (bytes[offset+3] << 16) | (bytes[offset+2] << 8) | bytes[offset+1];
         offset += 4;
     }
-    else {
-        jsonObject.amplitude = null;
-    }
     if (bytes[0] & TEST_FLAG) {
         jsonObject.counter = (bytes[offset+2] << 8) | bytes[offset+1];
-    }
-    else {
-        jsonObject.counter = null;
     }
 
     return jsonObject;
