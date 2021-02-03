@@ -58,7 +58,7 @@ bool newMessage = false;
 
 //char str[254];
 
-//long long prevMessage = 0;
+long long prevMessage = 0;
 
 void ADC_Handler();
 void setup(void) {     
@@ -222,16 +222,18 @@ void loop(void) {
     }
 
     bool result = false;
-    //if (((millis() - prevMessage) >= 1000) || newMessage) {
-    if (newMessage) { 
+    if (millis() - prevMessage >= 10000) {
+    //if (newMessage) { 
         // snprintf((char*)str, 254, "t%d, h%d, p%d, g%d, f %d, a%d, c%d", 
         //        temp, humidity, pressure, gas, frequency, amplitude, testCounter);
         
         // SerialUSB.println(str);
-        newMessage = false;
-//        prevMessage = millis();
+        //newMessage = false;
+        prevMessage = millis();
         testCounter++;
+        NVIC_DisableIRQ(ADC_IRQn); // stop ADC_IRQ to read from I2C
         result = lora.transferPacket(packetBuffer, 100);
+        NVIC_EnableIRQ(ADC_IRQn);  // enable ADC_IRQ again
     // result = lora.transferPacket("t:2700,p:1700,h:5000,g:156,f:440,a:230", 10);
     }
  
