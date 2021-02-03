@@ -155,5 +155,5 @@ void loop(void) {
         }
     }
     counter++;
-    delay(10000);
+    delay(60000);
 }
