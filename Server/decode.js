@@ -37,17 +37,17 @@ function Decode(fPort, bytes, variables) {
     }
     if (bytes[0] & GAS_FLAG) {
         jsonObject.gas = (bytes[offset+4] << 24) | (bytes[offset+3] << 16) | (bytes[offset+2] << 8) | bytes[offset+1];
-        jsonObject.gas /= 100;
+        jsonObject.gas;
         jsonObject.gas.toFixed(2)
         offset += 4;
     }
     if (bytes[0] & FREQ_FLAG) {
-        jsonObject.frequency = (bytes[offset+2] << 8) | bytes[offset+1];
-        offset += 2;
+        jsonObject.frequency = (bytes[offset+4] << 24) | (bytes[offset+3] << 16) | (bytes[offset+2] << 8) | bytes[offset+1];
+        offset += 4;
     }
     if (bytes[0] & AMP_FLAG) {
-        jsonObject.amplitude = (bytes[offset+2] << 8) | bytes[offset+1];
-        offset += 2;
+        jsonObject.amplitude = (bytes[offset+4] << 24) | (bytes[offset+3] << 16) | (bytes[offset+2] << 8) | bytes[offset+1];
+        offset += 4;
     }
     if (bytes[0] & TEST_FLAG) {
         jsonObject.counter = (bytes[offset+2] << 8) | bytes[offset+1];
