@@ -1,0 +1,15 @@
+9amp  0Hz
+11amp  0Hz
+12amp  1Hz
+37amp  0Hz
+148amp  2101Hz
+264amp  3915Hz
+444amp  4390Hz
+483amp  4485Hz
+859amp  4581Hz
+1246amp  4524Hz
+1588amp  4712Hz
+1578amp  4595Hz
+534amp  1850Hz
+10amp  0Hz
+8amp  0Hz
