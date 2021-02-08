@@ -25,7 +25,7 @@ function Decode(fPort, bytes, variables) {
     }
     if (bytes[0] & HUM_FLAG) {
         jsonObject.humidity = (bytes[offset+4] << 24) | (bytes[offset+3] << 16) | (bytes[offset+2] << 8) | bytes[offset+1];
-        jsonObject.humidity /= 1000;
+        jsonObject.humidity /= 100;
         jsonObject.humidity.toFixed(2)
         offset += 4;
     }
@@ -37,7 +37,7 @@ function Decode(fPort, bytes, variables) {
     }
     if (bytes[0] & GAS_FLAG) {
         jsonObject.gas = (bytes[offset+4] << 24) | (bytes[offset+3] << 16) | (bytes[offset+2] << 8) | bytes[offset+1];
-        jsonObject.gas;
+        jsonObject.gas /= 1000;
         jsonObject.gas.toFixed(2)
         offset += 4;
     }
