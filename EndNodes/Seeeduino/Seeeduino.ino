@@ -1,31 +1,38 @@
-#include "Zanshin_BME680.h"          // Include the BME680 Sensor library
 #include <LoRaWan.h>
 #include "lora_secrets.h" 
+
 #include "Adafruit_ZeroFFT.h"
-#include "BME680_SETUP.hh"
 #include "mic.hh"
 
+#include <Wire.h>
+#include <SPI.h>
+#include <Adafruit_Sensor.h>
+#include "Adafruit_BME680.h"
+#include "BME680_SETUP.hh"
+
 #define sampleRate 12500     //sample rate of ADC
-#define dataSize 1024        //used to set number of samples
-#define dataHalfSize 512                
+#define dataSize 512        //used to set number of samples
+#define dataHalfSize 256                
 #define gClk 3               //used to define which generic clock we will use for ADC
 #define intPri 0             //used to set interrupt priority for ADC
 #define cDiv 1               //divide factor for generic clock
 
 char buffer[256]; // lora init buffer
 
-volatile q15_t aDCVal[dataSize];       //array to hold ADC samples
+volatile int16_t aDCVal[dataSize];       //array to hold ADC samples
 volatile uint16_t sampleCounter = 0;  //tracks how many samples we have collected
 uint8_t countFFT = 0;
 uint16_t indexFFT = 0;
 typedef struct {
-    uint32_t frequency;
-    uint32_t amplitude;
+    int32_t frequency;
+    int32_t amplitude;
 } soundMeasurement_t;
 soundMeasurement_t soundMeasurement = {0, 0};
 soundMeasurement_t prevSoundMeasurement = {0, 0};
 
-BME680_Class BME680; // Create an instance of the BME680 class
+#define SEALEVELPRESSURE_HPA (1013.25)
+
+Adafruit_BME680 bme680; // I2C
 typedef struct {
     int32_t temp;
     int32_t humidity;
@@ -96,7 +103,7 @@ void setup(void) {
     lora.setPower(14);
     delay(1000);
     
-    setupBME680(&BME680); 
+    setupBME680(&bme680); 
 
     noInterrupts();
     clearRegisters();              // disable ADC and clear CTRLA and CTRLB
@@ -115,10 +122,12 @@ void loop(void) {
     
     if (millis() - prevBMEmeasurement >= 60000 || firstLoop || secondLoop) {
         NVIC_DisableIRQ(ADC_IRQn); // stop ADC_IRQ to read from I2C
-        BME680.getSensorData(bmeMeasurement.temp,
-                bmeMeasurement.humidity,
-                bmeMeasurement.pressure,
-                bmeMeasurement.gas);  // Get readings
+            if (bme680.performReading()) { 
+                bmeMeasurement.temp = bme680.temperature * 100;
+                bmeMeasurement.humidity = bme680.humidity * 100;
+                bmeMeasurement.pressure = bme680.pressure;
+                bmeMeasurement.gas = bme680.gas_resistance;
+            }
         NVIC_EnableIRQ(ADC_IRQn);  // enable ADC_IRQ again
         if (!firstLoop) {
             if (prevBmeMeasurement.temp - bmeMeasurement.temp >= 100
@@ -126,8 +135,8 @@ void loop(void) {
                 prevBmeMeasurement.temp = bmeMeasurement.temp;
                 tempFlag = true;
             }
-            if (prevBmeMeasurement.pressure - bmeMeasurement.pressure >= 500
-                    || prevBmeMeasurement.pressure - bmeMeasurement.pressure <= -500) { // difference in 10 pa
+            if (prevBmeMeasurement.pressure - bmeMeasurement.pressure >= 1000
+                    || prevBmeMeasurement.pressure - bmeMeasurement.pressure <= -1000) { // difference in 10 pa
                 prevBmeMeasurement.pressure = bmeMeasurement.pressure;
                 pressFlag = true;
             }
@@ -136,8 +145,8 @@ void loop(void) {
                 prevBmeMeasurement.humidity = bmeMeasurement.humidity;
                 humFlag = true;
             }
-            if (prevBmeMeasurement.gas - bmeMeasurement.gas >= 6000 
-                    || prevBmeMeasurement.gas - bmeMeasurement.gas <= -6000) { 
+            if (prevBmeMeasurement.gas - bmeMeasurement.gas >= 10000 
+                    || prevBmeMeasurement.gas - bmeMeasurement.gas <= -10000) { 
                 prevBmeMeasurement.gas = bmeMeasurement.gas;
                 gasFlag = true;
             }
@@ -159,7 +168,7 @@ void loop(void) {
         for (int i=0; i < dataSize; i++){
             amp += abs(aDCVal[i]);
         }
-        soundMeasurement.amplitude = amp / dataHalfSize;
+        soundMeasurement.amplitude += amp / dataHalfSize;
         ZeroFFT((q15_t*)aDCVal, dataSize);
         for (int i=0; i < dataHalfSize; i++){
             if (aDCVal[i] > aDCVal[indexFFT]) {
@@ -167,21 +176,25 @@ void loop(void) {
             }
         }
         soundMeasurement.frequency += (uint32_t)FFT_BIN(indexFFT, sampleRate, dataSize);
-        SerialUSB.println(FFT_BIN(indexFFT, sampleRate, dataSize)); //showing not good behaviour
+        //SerialUSB.println(FFT_BIN(indexFFT, sampleRate, dataSize)); //showing not good behaviour
         //SerialUSB.println(soundMeasurement.frequency); // possible bug
         countFFT++;
         
         if (countFFT == 50) {
             soundMeasurement.amplitude /= countFFT;
             soundMeasurement.frequency /= countFFT;
-            // SerialUSB.println(freq); // fourier need corection :-(
-            if (soundMeasurement.amplitude - prevSoundMeasurement.amplitude >= 1
-                    || soundMeasurement.amplitude - prevSoundMeasurement.amplitude <= -1) {
+            //SerialUSB.print(soundMeasurement.amplitude);
+            //SerialUSB.print(" ");
+            //SerialUSB.println(soundMeasurement.frequency); // fourier need corection :-(
+            if (soundMeasurement.amplitude - prevSoundMeasurement.amplitude >= 10
+                    || soundMeasurement.amplitude - prevSoundMeasurement.amplitude <= -10) {
+                //SerialUSB.println(soundMeasurement.amplitude - prevSoundMeasurement.amplitude);
                 prevSoundMeasurement.amplitude = soundMeasurement.amplitude;
                 ampFlag = true;
             }
             if (soundMeasurement.frequency - prevSoundMeasurement.frequency >= 45
                     || soundMeasurement.frequency - prevSoundMeasurement.frequency <= -45) {
+                //SerialUSB.println(soundMeasurement.frequency - prevSoundMeasurement.frequency);
                 prevSoundMeasurement.frequency = soundMeasurement.frequency;
                 freqFlag = true;
             }
@@ -201,7 +214,7 @@ void loop(void) {
         tempFlag = false;
         offset += 4;
         newMessage = true;
-        // SerialUSB.println("temp");
+        //SerialUSB.println("temp");
     }
     if (humFlag) {
         packetBuffer[0] |= (1 << HUM_HEAD);
@@ -209,7 +222,7 @@ void loop(void) {
         humFlag = false;
         offset += 4;
         newMessage = true;
-        // SerialUSB.println("hum");
+        //SerialUSB.println("hum");
     }
     if (pressFlag) {
         packetBuffer[0] |= (1 << PRESS_HEAD);
@@ -217,7 +230,7 @@ void loop(void) {
         pressFlag = false;
         offset += 4;
         newMessage = true;
-        // SerialUSB.println("press");
+        //SerialUSB.println("press");
     }
     if (gasFlag) {
         packetBuffer[0] |= (1 << GAS_HEAD);
@@ -225,7 +238,7 @@ void loop(void) {
         gasFlag = false;
         offset += 4;
         newMessage = true;
-        // SerialUSB.println("gas");
+        //SerialUSB.println("gas");
     }
     
     if (freqFlag) {
@@ -234,7 +247,7 @@ void loop(void) {
         freqFlag = false;
         offset += 4;
         newMessage = true;
-        // SerialUSB.println("freq");
+        //SerialUSB.println("freq");
     }
     if (ampFlag) {
         packetBuffer[0] |= (1 << AMP_HEAD);
@@ -248,23 +261,23 @@ void loop(void) {
         packetBuffer[0] |= (1 << TEST_HEAD);
         memmove(packetBuffer+offset, &testCounter, sizeof(testCounter));
         testFlag = false;
-        // SerialUSB.println("test");
+        //SerialUSB.println("test");
     }
 
     bool result = false;
-    if (millis() - prevMessage >= 10000) {
-    //if (newMessage) { 
-        snprintf((char*)str, 254, "t%d, h%d, p%d, g%d, f %d, a%d, c%d", 
-                bmeMeasurement.temp, bmeMeasurement.humidity, bmeMeasurement.pressure, bmeMeasurement.gas, prevSoundMeasurement.frequency, prevSoundMeasurement.amplitude, testCounter);
+    //if (millis() - prevMessage >= 10000) {
+    if (newMessage) { 
+        //snprintf((char*)str, 254, "t%d, h%d, p%d, g%d, f %d, a%d, c%d", 
+         //       bmeMeasurement.temp, bmeMeasurement.humidity, bmeMeasurement.pressure, bmeMeasurement.gas, prevSoundMeasurement.frequency, prevSoundMeasurement.amplitude, testCounter);
         
-        SerialUSB.println(str);
+        //SerialUSB.println(str);
         newMessage = false;
-        prevMessage = millis();
+        //prevMessage = millis();
         testCounter++;
-        //NVIC_DisableIRQ(ADC_IRQn); // stop ADC_IRQ while sending messages
-        //result = lora.transferPacket(packetBuffer, 100);
-        //NVIC_EnableIRQ(ADC_IRQn);  // enable ADC_IRQ again
-        //memset(packetBuffer, 0, 48);
+        NVIC_DisableIRQ(ADC_IRQn); // stop ADC_IRQ while sending messages
+        result = lora.transferPacket(packetBuffer, 100);
+        NVIC_EnableIRQ(ADC_IRQn);  // enable ADC_IRQ again
+        memset(packetBuffer, 0, 48);
     }
  
    /* if(result)
