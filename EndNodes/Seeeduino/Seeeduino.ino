@@ -11,8 +11,8 @@
 #include "BME680_SETUP.hh"
 
 #define sampleRate 12500     //sample rate of ADC
-#define dataSize 512        //used to set number of samples
-#define dataHalfSize 256                
+#define dataSize 1024        //used to set number of samples
+#define dataHalfSize 512                
 #define gClk 3               //used to define which generic clock we will use for ADC
 #define intPri 0             //used to set interrupt priority for ADC
 #define cDiv 1               //divide factor for generic clock
@@ -103,8 +103,6 @@ void setup(void) {
     lora.setPower(14);
     delay(1000);
     
-    setupBME680(&bme680); 
-
     noInterrupts();
     clearRegisters();              // disable ADC and clear CTRLA and CTRLB
     portSetup();                   // setup the ports or pin to make ADC measurement
@@ -113,6 +111,8 @@ void setup(void) {
     setUpInterrupt(intPri);        // sets up interrupt for ADC and argument assigns priority
     aDCSWTrigger();                // trigger ADC to start free run mode
     interrupts();
+    
+    setupBME680(&bme680);
 }
 
 uint16_t testCounter = 0;
@@ -145,8 +145,8 @@ void loop(void) {
                 prevBmeMeasurement.humidity = bmeMeasurement.humidity;
                 humFlag = true;
             }
-            if (prevBmeMeasurement.gas - bmeMeasurement.gas >= 10000 
-                    || prevBmeMeasurement.gas - bmeMeasurement.gas <= -10000) { 
+            if (prevBmeMeasurement.gas - bmeMeasurement.gas >= 1000 
+                    || prevBmeMeasurement.gas - bmeMeasurement.gas <= -1000) { 
                 prevBmeMeasurement.gas = bmeMeasurement.gas;
                 gasFlag = true;
             }
@@ -267,16 +267,16 @@ void loop(void) {
     bool result = false;
     //if (millis() - prevMessage >= 10000) {
     if (newMessage) { 
-        //snprintf((char*)str, 254, "t%d, h%d, p%d, g%d, f %d, a%d, c%d", 
-         //       bmeMeasurement.temp, bmeMeasurement.humidity, bmeMeasurement.pressure, bmeMeasurement.gas, prevSoundMeasurement.frequency, prevSoundMeasurement.amplitude, testCounter);
+        snprintf((char*)str, 254, "t%d, h%d, p%d, g%d, f %d, a%d, c%d", 
+                bmeMeasurement.temp, bmeMeasurement.humidity, bmeMeasurement.pressure, bmeMeasurement.gas, prevSoundMeasurement.frequency, prevSoundMeasurement.amplitude, testCounter);
         
-        //SerialUSB.println(str);
+        SerialUSB.println(str);
         newMessage = false;
         //prevMessage = millis();
         testCounter++;
-        NVIC_DisableIRQ(ADC_IRQn); // stop ADC_IRQ while sending messages
-        result = lora.transferPacket(packetBuffer, 100);
-        NVIC_EnableIRQ(ADC_IRQn);  // enable ADC_IRQ again
+        //NVIC_DisableIRQ(ADC_IRQn); // stop ADC_IRQ while sending messages
+        //result = lora.transferPacket(packetBuffer, 100);
+        //NVIC_EnableIRQ(ADC_IRQn);  // enable ADC_IRQ again
         memset(packetBuffer, 0, 48);
     }
  
