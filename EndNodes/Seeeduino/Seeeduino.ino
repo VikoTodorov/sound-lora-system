@@ -176,8 +176,6 @@ void loop(void) {
             }
         }
         soundMeasurement.frequency += (uint32_t)FFT_BIN(indexFFT, sampleRate, dataSize);
-        //SerialUSB.println(FFT_BIN(indexFFT, sampleRate, dataSize)); //showing not good behaviour
-        //SerialUSB.println(soundMeasurement.frequency); // possible bug
         countFFT++;
         
         if (countFFT == 50) {
@@ -267,16 +265,16 @@ void loop(void) {
     bool result = false;
     //if (millis() - prevMessage >= 10000) {
     if (newMessage) { 
-        snprintf((char*)str, 254, "t%d, h%d, p%d, g%d, f %d, a%d, c%d", 
-                bmeMeasurement.temp, bmeMeasurement.humidity, bmeMeasurement.pressure, bmeMeasurement.gas, prevSoundMeasurement.frequency, prevSoundMeasurement.amplitude, testCounter);
+        //snprintf((char*)str, 254, "t%d, h%d, p%d, g%d, f %d, a%d, c%d", 
+          //      bmeMeasurement.temp, bmeMeasurement.humidity, bmeMeasurement.pressure, bmeMeasurement.gas, prevSoundMeasurement.frequency, prevSoundMeasurement.amplitude, testCounter);
         
-        SerialUSB.println(str);
+        //SerialUSB.println(str);
         newMessage = false;
         //prevMessage = millis();
         testCounter++;
-        //NVIC_DisableIRQ(ADC_IRQn); // stop ADC_IRQ while sending messages
-        //result = lora.transferPacket(packetBuffer, 100);
-        //NVIC_EnableIRQ(ADC_IRQn);  // enable ADC_IRQ again
+        NVIC_DisableIRQ(ADC_IRQn); // stop ADC_IRQ while sending messages
+        result = lora.transferPacket(packetBuffer, 100);
+        NVIC_EnableIRQ(ADC_IRQn);  // enable ADC_IRQ again
         memset(packetBuffer, 0, 48);
     }
  
