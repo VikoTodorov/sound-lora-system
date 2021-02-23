@@ -1,5 +1,5 @@
 #include "Adafruit_ZeroFFT.h"
-#define sRate 12500            // sample rate of ADC
+#define sRate 16666            // sample rate of ADC
 
 const uint16_t dSize = 1024;     // used to set number of samples
 const uint16_t dHalfSize = 512;
@@ -32,14 +32,14 @@ void setup() {
         NVIC_DisableIRQ(ADC_IRQn);
         removeDCOffset(aDCVal, dSize);
         for (int j = 0; j < dSize; j++) {
-           SerialUSB.print(aDCVal[j]);
-           SerialUSB.print(", ");
+           //SerialUSB.print(aDCVal[j]);
+           //SerialUSB.print(", ");
            amplitude += abs(aDCVal[j]);
            // amplitude += aDCVal[j];
         }
         SerialUSB.println();
         amplitude /= dSize;
-        //SerialUSB.print(amplitude);
+        SerialUSB.print(amplitude);
         //SerialUSB.println();
         sampleCounter = 0;
         NVIC_EnableIRQ(ADC_IRQn); 
@@ -120,8 +120,8 @@ void genericClockSetup(int clk, int dFactor) {
 // --> Using 8MHz system clock with division factor of 1
 // --> DIV64 -> ADC generic cloak 8MHz/64 = 125 000 -> time = 1/125 000 = 8us (one cycle)
 // --> Prop. delay = (6 + 0(GAIN_1x))/125 000 = 48us
-// --> 80us = 32us + Adj. ADC sample - 4us -> Adj. ADC sample = 36us
-// --> Adj. ADC sample = (samplen+1)*(cycle/2) = (samplen+1)*4us -> samplen = 8
+// --> 60us - Prop. delay = 12us -> Adj. ADC sample - 4us -> Adj. ADC sample = 16us
+// --> Adj. ADC sample = (samplen+1)*(cycle/2) = (samplen+1)*4us -> samplen = 3
 // This function sets up the ADC, including setting resolution and ADC sample rate
 
 void aDCSetup() {
@@ -131,7 +131,7 @@ void aDCSetup() {
   	// average control 1 sample
     // samplen = 8
     REG_ADC_AVGCTRL |= ADC_AVGCTRL_SAMPLENUM_1;
-  	REG_ADC_SAMPCTRL = ADC_SAMPCTRL_SAMPLEN(8); 
+  	REG_ADC_SAMPCTRL = ADC_SAMPCTRL_SAMPLEN(3); 
   
   	// Input control and input scan, gain 0, positive to A0, negative to gnd
   	REG_ADC_INPUTCTRL |= ADC_INPUTCTRL_GAIN_1X | ADC_INPUTCTRL_MUXNEG_GND | ADC_INPUTCTRL_MUXPOS_PIN0;
