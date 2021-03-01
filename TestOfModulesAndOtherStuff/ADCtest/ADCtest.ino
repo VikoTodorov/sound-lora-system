@@ -1,13 +1,12 @@
-#include "Adafruit_ZeroFFT.h"
 #define sRate 16666            // sample rate of ADC
 
-const uint16_t dSize = 1024;     // used to set number of samples
-const uint16_t dHalfSize = 512;
-const byte gClk = 3;             // used to define which generic clock for ADC
-const byte intPri = 0;           // used to set interrupt priority for ADC
-const uint8_t cDiv = 1;              //divide factor for generic clock
+#define dSize 1024     // used to set number of samples
+#define dHalfSize 512
+#define gClk 3             // used to define which generic clock for ADC
+#define intPri 0           // used to set interrupt priority for ADC
+#define cDiv 1              //divide factor for generic clock
 
-volatile int16_t aDCVal[dSize];   //array to hold ADC samples
+volatile int16_t ADCVal[dSize];   //array to hold ADC samples
 volatile uint16_t sampleCounter = 0;          //tracks how many samples we have collected
 
 uint8_t countFFT = 0;
@@ -15,6 +14,7 @@ uint16_t indexFFT = 0;
 uint32_t freq = 0;
 int32_t amplitude = 0;
 
+void removeDCOffset(volatile int16_t, uint16_t);
 void setup() {
     SerialUSB.begin(115200);
     while(!SerialUSB); 
@@ -27,42 +27,46 @@ void setup() {
     setUpInterrupt(intPri);        // sets up interrupt for ADC and argument assigns priority
   	aDCSWTrigger();                // trigger ADC to start free run mode
     interrupts();
-    for (int i = 0; i < 10; i++) {
+
+    
+    /*for (int i = 0; i < 10; i++) {
       while(sampleCounter != dSize);
-        NVIC_DisableIRQ(ADC_IRQn);
-        removeDCOffset(aDCVal, dSize);
-        for (int j = 0; j < dSize; j++) {
-           //SerialUSB.print(aDCVal[j]);
+      NVIC_DisableIRQ(ADC_IRQn);
+      removeDCOffset(aDCVal, dSize);
+      for (int j = 0; j < dSize; j++) {
+          SerialUSB.println(aDCVal[j]);
            //SerialUSB.print(", ");
-           amplitude += abs(aDCVal[j]);
+           //if (i % 64 == 0) SerialUSB.println();
+            //amplitude += abs(aDCVal[j]);
            // amplitude += aDCVal[j];
-        }
-        SerialUSB.println();
-        amplitude /= dSize;
-        SerialUSB.print(amplitude);
+      }
+       // SerialUSB.println();
+        //amplitude /= dSize;
+       // SerialUSB.print(amplitude);
         //SerialUSB.println();
         sampleCounter = 0;
         NVIC_EnableIRQ(ADC_IRQn); 
+    }*/
+
+    
+    while(sampleCounter != dSize);
+    NVIC_DisableIRQ(ADC_IRQn);
+    removeDCOffset(ADCVal, dSize);
+    for (int j = 0; j < dSize; j++) {
+        if (j < dSize - 1) {
+            SerialUSB.print(ADCVal[j]);
+            SerialUSB.print(", ");
+        }
+        else {
+            SerialUSB.print(ADCVal[j]);
+            SerialUSB.println();
+        }
     }
+    sampleCounter = 0;
+    NVIC_EnableIRQ(ADC_IRQn); 
 }
 
 void loop() {
-    /*for (int i = 0; i < 10; i++) {
-      while(sampleCounter != dSize);
-        NVIC_DisableIRQ(ADC_IRQn);
-        removeDCOffset(aDCVal, dSize);
-        for (int i = 0; i < dSize; i++) {
-           SerialUSB.print(aDCVal[i]);
-           SerialUSB.print(", ");
-           amplitude += abs(aDCVal[i]);
-        }
-        amplitude /= dHalfSize;
-        SerialUSB.print(amplitude);
-        SerialUSB.println();
-        sampleCounter = 0;
-        NVIC_EnableIRQ(ADC_IRQn); 
-    }*/
-    //delay(5000);
 }
 
 void clearRegisters() {
@@ -115,7 +119,7 @@ void genericClockSetup(int clk, int dFactor) {
 // ADC_CTRLB_PRESCALER_DIV128_Val  0x5u   
 // ADC_CTRLB_PRESCALER_DIV256_Val  0x6u   
 // ADC_CTRLB_PRESCALER_DIV512_Val  0x7u   
-// --> Need of 12.5 kHz freq = 80us
+// --> Need of ~ 16 kHz freq = 60us
 // --> ADC time = prop. delay(p. 785) + Adj.ADC sample(p. 798) - half cycle(the sample, p. 787)
 // --> Using 8MHz system clock with division factor of 1
 // --> DIV64 -> ADC generic cloak 8MHz/64 = 125 000 -> time = 1/125 000 = 8us (one cycle)
@@ -177,7 +181,7 @@ void aDCSWTrigger() {
 // This ISR is called each time ADC makes a reading
 void ADC_Handler() {
     if(sampleCounter < dSize) {
-      aDCVal[sampleCounter] = REG_ADC_RESULT;
+      ADCVal[sampleCounter] = REG_ADC_RESULT;
       sampleCounter++;
     }
     // Need to reset interrupt
@@ -187,17 +191,17 @@ void ADC_Handler() {
 
 // This function takes out DC offset of AC signal, it assumes that the offset brings signal to zero volts
 // input arguments: array with measured points and size of measurement
-void removeDCOffset(volatile int16_t aDC[], int aSize) {
+void removeDCOffset (volatile int16_t valueADC[], uint16_t aSize) {
     // get number of levels in ADC measurement and divide it to aSize to get 0 level
     int avrADC = 0; 
     for (int i = 0; i < aSize; i++) {
-        avrADC += aDC[i];
+        avrADC += valueADC[i];
     }
     avrADC /= aSize;
     //SerialUSB.println(avrADC);
     for(int i = 0; i < aSize; i++) {
         // take out offset
-        aDC[i] = aDC[i] - avrADC;
+        valueADC[i] = valueADC[i] - avrADC;
        // if (aDC[i] <= 40 && aDC[i] >= -40) {
         //    aDC[i] = 0;
         //}
