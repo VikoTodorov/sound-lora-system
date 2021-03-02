@@ -1,9 +1,7 @@
 #include <LoRaWan.h>
 #include "lora_secrets.h" 
-
 #include "Adafruit_ZeroFFT.h"
 #include "mic.hh"
-
 #include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_Sensor.h>
@@ -16,6 +14,8 @@
 #define gClk 3               //used to define which generic clock we will use for ADC
 #define intPri 0             //used to set interrupt priority for ADC
 #define cDiv 1               //divide factor for generic clock
+#define fftCycles 64
+#define fftCyclesDiv 6
 
 char buffer[256]; // lora init buffer
 
@@ -31,8 +31,8 @@ soundMeasurement_t soundMeasurement = {0, 0};
 soundMeasurement_t prevSoundMeasurement = {0, 0};
 
 #define SEALEVELPRESSURE_HPA (1013.25)
-
 Adafruit_BME680 bme680; // I2C
+
 typedef struct {
     int32_t temp;
     int32_t humidity;
@@ -64,14 +64,25 @@ uint8_t TEST_HEAD = 0;
 
 //bool result = false;
 
+uint16_t testCounter = 0;
 bool newMessage = false;
 char str[254];
 
 long prevMessage = 0; // used for tests
 
 void ADC_Handler();
+
 void setup(void) {     
  
+    noInterrupts();
+    clearRegisters();              // disable ADC and clear CTRLA and CTRLB
+    portSetup();                   // setup the ports or pin to make ADC measurement
+    genericClockSetup(gClk, cDiv); // setup generic clock and routed it to ADC
+    aDCSetup();                    // set up registers for ADC, input argument sets ADC reference
+    setUpInterrupt(intPri);        // sets up interrupt for ADC and argument assigns priority
+    aDCSWTrigger();                // trigger ADC to start free run mode
+    interrupts();
+
     SerialUSB.begin(115200);
     while(!SerialUSB);
  
@@ -103,22 +114,12 @@ void setup(void) {
     lora.setPower(14);
     delay(1000);
     
-    noInterrupts();
-    clearRegisters();              // disable ADC and clear CTRLA and CTRLB
-    portSetup();                   // setup the ports or pin to make ADC measurement
-    genericClockSetup(gClk, cDiv); // setup generic clock and routed it to ADC
-    aDCSetup();                    // set up registers for ADC, input argument sets ADC reference
-    setUpInterrupt(intPri);        // sets up interrupt for ADC and argument assigns priority
-    aDCSWTrigger();                // trigger ADC to start free run mode
-    interrupts();
-    
     setupBME680(&bme680);
 }
 
-uint16_t testCounter = 0;
-
 void loop(void) {   
     uint8_t offset = 1;
+    testFlag = true; 
     
     if (millis() - prevBMEmeasurement >= 60000 || firstLoop || secondLoop) {
         NVIC_DisableIRQ(ADC_IRQn); // stop ADC_IRQ to read from I2C
@@ -160,7 +161,6 @@ void loop(void) {
         }
     }
 
-    testFlag = true; 
     if (sampleCounter == dataSize) { 
         uint16_t amp = 0;
         NVIC_DisableIRQ(ADC_IRQn); // stop ADC_IRQ to fill values in array
@@ -178,9 +178,9 @@ void loop(void) {
         soundMeasurement.frequency += (uint32_t)FFT_BIN(indexFFT, sampleRate, dataSize);
         countFFT++;
         
-        if (countFFT == 50) {
-            soundMeasurement.amplitude /= countFFT;
-            soundMeasurement.frequency /= countFFT;
+        if (countFFT == fftCycles) {
+            soundMeasurement.amplitude >>= fftCyclesDiv;
+            soundMeasurement.frequency >>= fftCyclesDiv;
             //SerialUSB.print(soundMeasurement.amplitude);
             //SerialUSB.print(" ");
             //SerialUSB.println(soundMeasurement.frequency); // fourier need corection :-(
@@ -212,7 +212,6 @@ void loop(void) {
         tempFlag = false;
         offset += 4;
         newMessage = true;
-        //SerialUSB.println("temp");
     }
     if (humFlag) {
         packetBuffer[0] |= (1 << HUM_HEAD);
@@ -220,7 +219,6 @@ void loop(void) {
         humFlag = false;
         offset += 4;
         newMessage = true;
-        //SerialUSB.println("hum");
     }
     if (pressFlag) {
         packetBuffer[0] |= (1 << PRESS_HEAD);
@@ -228,7 +226,6 @@ void loop(void) {
         pressFlag = false;
         offset += 4;
         newMessage = true;
-        //SerialUSB.println("press");
     }
     if (gasFlag) {
         packetBuffer[0] |= (1 << GAS_HEAD);
@@ -236,16 +233,13 @@ void loop(void) {
         gasFlag = false;
         offset += 4;
         newMessage = true;
-        //SerialUSB.println("gas");
     }
-    
     if (freqFlag) {
         packetBuffer[0] |= (1 << FREQ_HEAD);
         memmove(packetBuffer+offset, &prevSoundMeasurement.frequency, sizeof(prevSoundMeasurement.frequency));
         freqFlag = false;
         offset += 4;
         newMessage = true;
-        //SerialUSB.println("freq");
     }
     if (ampFlag) {
         packetBuffer[0] |= (1 << AMP_HEAD);
@@ -253,13 +247,11 @@ void loop(void) {
         ampFlag = false;
         offset += 4;
         newMessage = true;
-        //SerialUSB.println("amp");
     }
     if (testFlag) {
         packetBuffer[0] |= (1 << TEST_HEAD);
         memmove(packetBuffer+offset, &testCounter, sizeof(testCounter));
         testFlag = false;
-        //SerialUSB.println("test");
     }
 
     bool result = false;
