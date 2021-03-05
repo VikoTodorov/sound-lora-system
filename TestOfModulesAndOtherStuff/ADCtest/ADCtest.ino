@@ -55,7 +55,7 @@ void setup() {
     for (int j = 0; j < dSize; j++) {
         if (j < dSize - 1) {
             SerialUSB.print(ADCVal[j]);
-            SerialUSB.print(", ");
+            SerialUSB.print(" ");
         }
         else {
             SerialUSB.print(ADCVal[j]);
