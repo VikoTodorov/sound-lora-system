@@ -194,15 +194,15 @@ void ADC_Handler() {
 void removeDCOffset (volatile int16_t valueADC[], uint16_t aSize) {
     // get number of levels in ADC measurement and divide it to aSize to get 0 level
     int avrADC = 0; 
-    //for (int i = 0; i < aSize; i++) {
-      //  avrADC += valueADC[i];
-    //}
-    //avrADC /= aSize;
+    for (int i = 0; i < aSize; i++) {
+        avrADC += valueADC[i];
+    }
+    avrADC /= aSize;
     //SerialUSB.println(avrADC);
     for(int i = 0; i < aSize; i++) {
         // take out offset
-        //valueADC[i] = valueADC[i] - avrADC;
-        valueADC[i] = valueADC[i] - 2048;
+        valueADC[i] = valueADC[i] - avrADC;
+        //valueADC[i] = valueADC[i] - 2048;
        // if (aDC[i] <= 40 && aDC[i] >= -40) {
         //    aDC[i] = 0;
         //}
