@@ -1,5 +1,5 @@
 #include <LoRaWan.h>
-#include "lora_secrets.h" 
+#include "lora_secrets.hh" 
 #include "Adafruit_ZeroFFT.h"
 #include "mic.hh"
 #include <Wire.h>
@@ -45,7 +45,7 @@ bool firstLoop = true;   // skip it because is incorrect
 bool secondLoop = true;  // start the time checking
 long prevBMEmeasurement = 0;
 
-unsigned char packetBuffer[48]; 
+unsigned char packetBuffer[32]; 
 bool tempFlag = false;
 bool humFlag = false;
 bool pressFlag = false;
@@ -87,31 +87,33 @@ void setup(void) {
     while(!SerialUSB);
  
     lora.init();
- 
+    
     memset(buffer, 0, 256);
     lora.getVersion(buffer, 256, 1);
     SerialUSB.print(buffer); 
- 
+    
     memset(buffer, 0, 256);
     lora.getId(buffer, 256, 1);
     SerialUSB.print(buffer);
- 
-    lora.setKey(NET_SESSION_KEY, APP_SESSION_KEY, NULL);
- 
-    lora.setDeciveMode(LWABP);
-    lora.setDataRate(DR5, EU868);
- 
+    
+    lora.setKey(nullptr, nullptr, APP_KEY);
+    
+    lora.setDeciveMode(LWOTAA);
+    lora.setDataRate(DR0, EU868);
+    
     lora.setChannel(0, 868.1);
-    lora.setChannel(1, 868.1);
-    lora.setChannel(2, 868.1);
- 
+    lora.setChannel(1, 868.3);
+    lora.setChannel(2, 868.5);
+    
     lora.setReceiceWindowFirst(0, 868.1);
-    lora.setReceiceWindowSecond(869.5, DR5);
- 
+    lora.setReceiceWindowSecond(869.5, DR3);
+    
     lora.setDutyCycle(false);
     lora.setJoinDutyCycle(false);
- 
+    
     lora.setPower(14);
+    
+    while(!lora.setOTAAJoin(JOIN));
     delay(1000);
     
     setupBME680(&bme680);
@@ -168,7 +170,7 @@ void loop(void) {
         for (int i=0; i < dataSize; i++){
             amp += abs(aDCVal[i]);
         }
-        soundMeasurement.amplitude += amp / dataHalfSize;
+        soundMeasurement.amplitude += amp >> 9;
         ZeroFFT((q15_t*)aDCVal, dataSize);
         for (int i=0; i < dataHalfSize; i++){
             if (aDCVal[i] > aDCVal[indexFFT]) {
@@ -265,19 +267,18 @@ void loop(void) {
         //prevMessage = millis();
         testCounter++;
         NVIC_DisableIRQ(ADC_IRQn); // stop ADC_IRQ while sending messages
-        result = lora.transferPacket(packetBuffer, 100);
+        result = lora.transferPacket(packetBuffer, 10);
         NVIC_EnableIRQ(ADC_IRQn);  // enable ADC_IRQ again
-        memset(packetBuffer, 0, 48);
+        memset(packetBuffer, 0, 32);
     }
  
-   /* if(result)
-    {
+    if(result) {
         short length;
         short rssi;
- 
+        
         memset(buffer, 0, 256);
         length = lora.receivePacket(buffer, 256, &rssi);
- 
+        
         if(length)
         {
             SerialUSB.print("Length is: ");
@@ -293,7 +294,7 @@ void loop(void) {
             }
             SerialUSB.println();
         }
-    }*/
+    }
 }
 
 // This ISR is called each time ADC makes a reading

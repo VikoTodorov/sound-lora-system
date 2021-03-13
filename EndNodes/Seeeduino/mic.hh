@@ -117,7 +117,7 @@ void removeDCOffset(volatile int16_t aDC[], int aSize) {
     for (int i = 0; i < aSize; i++) {
         avrADC += aDC[i];
     }
-    avrADC /= aSize;
+    avrADC >>= 10;
     for(int i = 0; i < aSize; i++) {
         // take out offset
         aDC[i] = aDC[i] - avrADC;
