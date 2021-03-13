@@ -35,9 +35,9 @@ Adafruit_BME680 bme680; // I2C
 
 typedef struct {
     int32_t temp;
-    int32_t humidity;
-    int32_t pressure;
-    int32_t gas;
+    uint32_t humidity;
+    uint32_t pressure;
+    uint32_t gas;
 } bmeMeasurement_t;
 bmeMeasurement_t bmeMeasurement = {0, 0, 0, 0};
 bmeMeasurement_t prevBmeMeasurement = {0, 0, 0, 0};
@@ -61,8 +61,6 @@ uint8_t GAS_HEAD = 3;
 uint8_t FREQ_HEAD = 2;
 uint8_t AMP_HEAD = 1;
 uint8_t TEST_HEAD = 0;
-
-//bool result = false;
 
 uint16_t testCounter = 0;
 bool newMessage = false;
@@ -99,7 +97,8 @@ void setup(void) {
     lora.setKey(nullptr, nullptr, APP_KEY);
     
     lora.setDeciveMode(LWOTAA);
-    lora.setDataRate(DR0, EU868);
+    lora.setDataRate(DR5, EU868);
+    lora.setAdaptiveDataRate(true);
     
     lora.setChannel(0, 868.1);
     lora.setChannel(1, 868.3);
@@ -143,8 +142,8 @@ void loop(void) {
                 prevBmeMeasurement.pressure = bmeMeasurement.pressure;
                 pressFlag = true;
             }
-            if (prevBmeMeasurement.humidity - bmeMeasurement.humidity >= 1000 
-                    || prevBmeMeasurement.humidity -bmeMeasurement.humidity <= -1000) { // difference in 1 %
+            if (prevBmeMeasurement.humidity - bmeMeasurement.humidity >= 500 
+                    || prevBmeMeasurement.humidity -bmeMeasurement.humidity <= -500) { // difference in 5 %
                 prevBmeMeasurement.humidity = bmeMeasurement.humidity;
                 humFlag = true;
             }
@@ -212,43 +211,57 @@ void loop(void) {
         packetBuffer[0] |= (1 << TEMP_HEAD);
         memmove(packetBuffer+offset, &bmeMeasurement.temp, sizeof(bmeMeasurement.temp));
         tempFlag = false;
-        offset += 4;
+        offset += sizeof(bmeMeasurement.temp);
         newMessage = true;
+        //Serial.println("temp");
     }
     if (humFlag) {
         packetBuffer[0] |= (1 << HUM_HEAD);
         memmove(packetBuffer+offset, &bmeMeasurement.humidity, sizeof(bmeMeasurement.humidity));
         humFlag = false;
-        offset += 4;
+        offset += sizeof(bmeMeasurement.humidity);
         newMessage = true;
+        //Serial.println("hum");
     }
     if (pressFlag) {
         packetBuffer[0] |= (1 << PRESS_HEAD);
         memmove(packetBuffer+offset, &bmeMeasurement.pressure, sizeof(bmeMeasurement.pressure));
         pressFlag = false;
-        offset += 4;
+        offset += sizeof(bmeMeasurement.pressure);
         newMessage = true;
+        /*Serial.print("press ");
+        Serial.print(sizeof(bmeMeasurement.pressure));
+        Serial.print(" ");
+        Serial.print(bmeMeasurement.pressure);
+        Serial.print(" ");
+        Serial.println(prevBmeMeasurement.pressure);
+        Serial.println("ha");
+        int test = (packetBuffer[offset-1] << 24) | (packetBuffer[offset-2] << 16) | (packetBuffer[offset-3] << 8) | packetBuffer[offset-4];
+        Serial.println(test);*/
     }
     if (gasFlag) {
         packetBuffer[0] |= (1 << GAS_HEAD);
         memmove(packetBuffer+offset, &bmeMeasurement.gas, sizeof(bmeMeasurement.gas));
         gasFlag = false;
-        offset += 4;
+        offset += sizeof(bmeMeasurement.gas);
         newMessage = true;
+        //Serial.println("gas");
     }
     if (freqFlag) {
         packetBuffer[0] |= (1 << FREQ_HEAD);
         memmove(packetBuffer+offset, &prevSoundMeasurement.frequency, sizeof(prevSoundMeasurement.frequency));
         freqFlag = false;
-        offset += 4;
+        offset += sizeof(prevSoundMeasurement.frequency);
         newMessage = true;
+        //Serial.println("freq");
     }
     if (ampFlag) {
         packetBuffer[0] |= (1 << AMP_HEAD);
         memmove(packetBuffer+offset, &prevSoundMeasurement.amplitude, sizeof(prevSoundMeasurement.amplitude));
         ampFlag = false;
-        offset += 4;
+        offset += sizeof(prevSoundMeasurement.amplitude);
         newMessage = true;
+        //Serial.println("amp");
     }
     if (testFlag) {
         packetBuffer[0] |= (1 << TEST_HEAD);
@@ -257,17 +270,15 @@ void loop(void) {
     }
 
     bool result = false;
-    //if (millis() - prevMessage >= 10000) {
     if (newMessage) { 
-        //snprintf((char*)str, 254, "t%d, h%d, p%d, g%d, f %d, a%d, c%d", 
-          //      bmeMeasurement.temp, bmeMeasurement.humidity, bmeMeasurement.pressure, bmeMeasurement.gas, prevSoundMeasurement.frequency, prevSoundMeasurement.amplitude, testCounter);
+        //snprintf((char*)str, 254, "t%d, h%d, p%d, g%d, f%d, a%d, c%d", 
+        //        bmeMeasurement.temp, bmeMeasurement.humidity, bmeMeasurement.pressure, bmeMeasurement.gas, prevSoundMeasurement.frequency, prevSoundMeasurement.amplitude, testCounter);
         
         //SerialUSB.println(str);
         newMessage = false;
-        //prevMessage = millis();
         testCounter++;
         NVIC_DisableIRQ(ADC_IRQn); // stop ADC_IRQ while sending messages
-        result = lora.transferPacket(packetBuffer, 10);
+        result = lora.transferPacket(packetBuffer, 100);
         NVIC_EnableIRQ(ADC_IRQn);  // enable ADC_IRQ again
         memset(packetBuffer, 0, 32);
     }
