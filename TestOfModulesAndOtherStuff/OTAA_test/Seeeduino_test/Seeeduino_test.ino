@@ -1,60 +1,61 @@
+
 #include <LoRaWan.h>
- 
- 
+
+
 unsigned char data[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 0xA,};
 char buffer[256];
- 
- 
+
+
 void setup(void)
 {
     SerialUSB.begin(115200);
     while(!SerialUSB);
- 
+    
     lora.init();
- 
+    
     memset(buffer, 0, 256);
     lora.getVersion(buffer, 256, 1);
     SerialUSB.print(buffer); 
- 
+    
     memset(buffer, 0, 256);
     lora.getId(buffer, 256, 1);
     SerialUSB.print(buffer);
- 
-    lora.setKey("C64A092BC89E17A336223D3637FD345D", "C64A092BC89E17A336223D3637FD345D", "C64A092BC89E17A336223D3637FD345D");
- 
+    
+    lora.setKey(nullptr, nullptr, "F51516392DDCFFB265A884A56818EF09");
+    
     lora.setDeciveMode(LWOTAA);
     lora.setDataRate(DR0, EU868);
- 
+    
     lora.setChannel(0, 868.1);
     lora.setChannel(1, 868.3);
     lora.setChannel(2, 868.5);
- 
+    
     lora.setReceiceWindowFirst(0, 868.1);
     lora.setReceiceWindowSecond(869.5, DR3);
- 
+    
     lora.setDutyCycle(false);
     lora.setJoinDutyCycle(false);
- 
+    
     lora.setPower(14);
- 
+    
     while(!lora.setOTAAJoin(JOIN));
 }
- 
+
 void loop(void)
 {   
     bool result = false;
- 
+    
     result = lora.transferPacket("Hello World!", 10);
     //result = lora.transferPacket(data, 10, 10);
- 
+    
     if(result)
     {
         short length;
         short rssi;
- 
+        
         memset(buffer, 0, 256);
         length = lora.receivePacket(buffer, 256, &rssi);
- 
+        
         if(length)
         {
             SerialUSB.print("Length is: ");
