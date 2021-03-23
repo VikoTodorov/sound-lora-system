@@ -22,32 +22,11 @@ void setup() {
     noInterrupts();
     clearRegisters();
     portSetup();                   // setup the ports or pin to make ADC measurement
-	  genericClockSetup(gClk, cDiv); // setup generic clock and routed it to ADC
+    genericClockSetup(gClk, cDiv); // setup generic clock and routed it to ADC
     aDCSetup();                    // set up registers for ADC, input argument sets ADC reference
     setUpInterrupt(intPri);        // sets up interrupt for ADC and argument assigns priority
-  	aDCSWTrigger();                // trigger ADC to start free run mode
+    aDCSWTrigger();                // trigger ADC to start free run mode
     interrupts();
-
-    
-    /*for (int i = 0; i < 10; i++) {
-      while(sampleCounter != dSize);
-      NVIC_DisableIRQ(ADC_IRQn);
-      removeDCOffset(aDCVal, dSize);
-      for (int j = 0; j < dSize; j++) {
-          SerialUSB.println(aDCVal[j]);
-           //SerialUSB.print(", ");
-           //if (i % 64 == 0) SerialUSB.println();
-            //amplitude += abs(aDCVal[j]);
-           // amplitude += aDCVal[j];
-      }
-       // SerialUSB.println();
-        //amplitude /= dSize;
-       // SerialUSB.print(amplitude);
-        //SerialUSB.println();
-        sampleCounter = 0;
-        NVIC_EnableIRQ(ADC_IRQn); 
-    }*/
-
     
     while(sampleCounter != dSize);
     NVIC_DisableIRQ(ADC_IRQn);
@@ -71,41 +50,41 @@ void loop() {
 
 void clearRegisters() {
     // clear/disable adc if enabled
-    ADC->CTRLA.reg = 0; 	
+    ADC->CTRLA.reg = 0;   
     while (REG_ADC_STATUS & ADC_STATUS_SYNCBUSY);
     // clear/disable default arduino ide settings for ctrlb 
-	  ADC->CTRLB.reg = 0; 	
+    ADC->CTRLB.reg = 0;   
     while (REG_ADC_STATUS & ADC_STATUS_SYNCBUSY);
 }
 
 // function for configuring ports or pins, note that this will not use the same pin numbering scheme as Arduino, it will use Pxy groups
 // x is the group and y is the number or id 
 void portSetup() {
-  	// Input pin for ADC Arduino A0/PA02
-  	REG_PORT_DIRCLR1 = PORT_PA02;
+    // Input pin for ADC Arduino A0/PA02
+    REG_PORT_DIRCLR1 = PORT_PA02;
 
-  	// Enable multiplexing on PA02_AIN0 and PA03/ADC_VREFA
-  	PORT->Group[0].PINCFG[2].bit.PMUXEN = 1;
-  	PORT->Group[0].PINCFG[3].bit.PMUXEN = 1;
-  	PORT->Group[0].PMUX[1].reg = PORT_PMUX_PMUXE_B | PORT_PMUX_PMUXO_B;
+    // Enable multiplexing on PA02_AIN0 and PA03/ADC_VREFA
+    PORT->Group[0].PINCFG[2].bit.PMUXEN = 1;
+    PORT->Group[0].PINCFG[3].bit.PMUXEN = 1;
+    PORT->Group[0].PMUX[1].reg = PORT_PMUX_PMUXE_B | PORT_PMUX_PMUXO_B;
 }
 
 // this function sets up the generic clock that will be used for the ADC unit
 // by default it uses the 48M system clock, input arguments set divide factor for generic clock and choose which generic clock
 void genericClockSetup(int clk, int dFactor) {
-  	// Enable the APBC clock for the ADC
-  	REG_PM_APBCMASK |= PM_APBCMASK_ADC;
+    // Enable the APBC clock for the ADC
+    REG_PM_APBCMASK |= PM_APBCMASK_ADC;
   
-  	// This allows you to setup a div factor for the selected clock certain clocks allow certain division factors: Generic clock generators 3 - 8 8 division factor bits - DIV[7:0]
+    // This allows you to setup a div factor for the selected clock certain clocks allow certain division factors: Generic clock generators 3 - 8 8 division factor bits - DIV[7:0]
      GCLK->GENDIV.reg |= GCLK_GENDIV_ID(clk)| GCLK_GENDIV_DIV(dFactor);
      while (GCLK->STATUS.reg & GCLK_STATUS_SYNCBUSY);
      
-  	// configure the generator of the generic clock with 8 MHz clock
-  	// GCLK_GENCTRL_DIVSEL stay unset, it makes divide based on power of two
+    // configure the generator of the generic clock with 8 MHz clock
+    // GCLK_GENCTRL_DIVSEL stay unset, it makes divide based on power of two
     GCLK->GENCTRL.reg |= GCLK_GENCTRL_GENEN | GCLK_GENCTRL_SRC_OSC8M | GCLK_GENCTRL_ID(clk);
     while (GCLK->STATUS.reg & GCLK_STATUS_SYNCBUSY);
   
-  	// enable clock, set gen clock number, and ID to where the clock goes (30 is ADC)
+    // enable clock, set gen clock number, and ID to where the clock goes (30 is ADC)
     GCLK->CLKCTRL.reg |= GCLK_CLKCTRL_CLKEN | GCLK_CLKCTRL_GEN(clk) | GCLK_CLKCTRL_ID(30);
     while (GCLK->STATUS.bit.SYNCBUSY);
 }
@@ -129,20 +108,20 @@ void genericClockSetup(int clk, int dFactor) {
 // This function sets up the ADC, including setting resolution and ADC sample rate
 
 void aDCSetup() {
-  	// set vref for ADC to VCC
-  	REG_ADC_REFCTRL = ADC_REFCTRL_REFSEL_INTVCC1;
+    // set vref for ADC to VCC
+    REG_ADC_REFCTRL = ADC_REFCTRL_REFSEL_INTVCC1;
 
-  	// average control 1 sample
+    // average control 1 sample
     // samplen = 8
     REG_ADC_AVGCTRL |= ADC_AVGCTRL_SAMPLENUM_1;
-  	REG_ADC_SAMPCTRL = ADC_SAMPCTRL_SAMPLEN(3); 
+    REG_ADC_SAMPCTRL = ADC_SAMPCTRL_SAMPLEN(3); 
   
-  	// Input control and input scan, gain 0, positive to A0, negative to gnd
-  	REG_ADC_INPUTCTRL |= ADC_INPUTCTRL_GAIN_1X | ADC_INPUTCTRL_MUXNEG_GND | ADC_INPUTCTRL_MUXPOS_PIN0;
-  	while (REG_ADC_STATUS & ADC_STATUS_SYNCBUSY);
+    // Input control and input scan, gain 0, positive to A0, negative to gnd
+    REG_ADC_INPUTCTRL |= ADC_INPUTCTRL_GAIN_1X | ADC_INPUTCTRL_MUXNEG_GND | ADC_INPUTCTRL_MUXPOS_PIN0;
+    while (REG_ADC_STATUS & ADC_STATUS_SYNCBUSY);
 
     // set the divide factor, 8 bit resolution and freerun mode
-  	ADC->CTRLB.reg |= ADC_CTRLB_RESSEL_12BIT | ADC_CTRLB_PRESCALER_DIV64 | ADC_CTRLB_FREERUN; 
+    ADC->CTRLB.reg |= ADC_CTRLB_RESSEL_12BIT | ADC_CTRLB_PRESCALER_DIV64 | ADC_CTRLB_FREERUN; 
     while (REG_ADC_STATUS & ADC_STATUS_SYNCBUSY);
 
     // Disable window monitor mode
@@ -208,6 +187,3 @@ void removeDCOffset (volatile int16_t valueADC[], uint16_t aSize) {
         //}
     }
 }
-
-// if diabling registers in the beggining of setup don't work try to comment ctrlb settings in wiring.c in:
-// /home/user/.arduino15/packages/Seeeduino/hardware/samd/1.8.1/cores/arduino
