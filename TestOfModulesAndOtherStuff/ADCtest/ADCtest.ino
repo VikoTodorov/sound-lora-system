@@ -102,9 +102,9 @@ void genericClockSetup(int clk, int dFactor) {
 // --> ADC time = prop. delay(p. 785) + Adj.ADC sample(p. 798) - half cycle(the sample, p. 787)
 // --> Using 8MHz system clock with division factor of 1
 // --> DIV64 -> ADC generic cloak 8MHz/64 = 125 000 -> time = 1/125 000 = 8us (one cycle)
-// --> Prop. delay = (6 + 0(GAIN_1x))/125 000 = 48us
-// --> 60us - Prop. delay = 12us -> Adj. ADC sample - 4us -> Adj. ADC sample = 16us
-// --> Adj. ADC sample = (samplen+1)*(cycle/2) = (samplen+1)*4us -> samplen = 3
+// --> Prop. delay = (6 + 1(GAIN_DIV2))/125 000 = 56us
+// --> 60us - Prop. delay = 4us -> Adj. ADC sample - 4us -> Adj. ADC sample = 8us
+// --> Adj. ADC sample = (samplen+1)*(cycle/2) = (samplen+1)*4us -> samplen = 1
 // This function sets up the ADC, including setting resolution and ADC sample rate
 
 void aDCSetup() {
@@ -114,10 +114,10 @@ void aDCSetup() {
     // average control 1 sample
     // samplen = 8
     REG_ADC_AVGCTRL |= ADC_AVGCTRL_SAMPLENUM_1;
-    REG_ADC_SAMPCTRL = ADC_SAMPCTRL_SAMPLEN(3); 
+    REG_ADC_SAMPCTRL = ADC_SAMPCTRL_SAMPLEN(1); 
   
     // Input control and input scan, gain 0, positive to A0, negative to gnd
-    REG_ADC_INPUTCTRL |= ADC_INPUTCTRL_GAIN_1X | ADC_INPUTCTRL_MUXNEG_GND | ADC_INPUTCTRL_MUXPOS_PIN0;
+    REG_ADC_INPUTCTRL |= ADC_INPUTCTRL_GAIN_DIV2 | ADC_INPUTCTRL_MUXNEG_GND | ADC_INPUTCTRL_MUXPOS_PIN0;
     while (REG_ADC_STATUS & ADC_STATUS_SYNCBUSY);
 
     // set the divide factor, 8 bit resolution and freerun mode
