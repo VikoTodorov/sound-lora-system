@@ -50,26 +50,26 @@ void genericClockSetup(int clk, int dFactor) {
 // ADC_CTRLB_PRESCALER_DIV128_Val  0x5u   
 // ADC_CTRLB_PRESCALER_DIV256_Val  0x6u   
 // ADC_CTRLB_PRESCALER_DIV512_Val  0x7u   
-// --> Need of 12.5 kHz freq = 80us
+// --> Need of ~ 16 kHz freq = 60us
 // --> ADC time = prop. delay(p. 785) + Adj.ADC sample(p. 798) - half cycle(the sample, p. 787)
 // --> Using 8MHz system clock with division factor of 1
 // --> DIV64 -> ADC generic cloak 8MHz/64 = 125 000 -> time = 1/125 000 = 8us (one cycle)
-// --> Prop. delay = (6 + 0(GAIN_1x))/125 000 = 48us
-// --> 80us = 32us + Adj. ADC sample - 4us -> Adj. ADC sample = 36us
-// --> Adj. ADC sample = (samplen+1)*(cycle/2) = (samplen+1)*4us -> samplen = 8
+// --> Prop. delay = (6 + 1(GAIN_DIV2))/125 000 = 56us
+// --> 60us - Prop. delay = 4us -> Adj. ADC sample - 4us -> Adj. ADC sample = 8us
+// --> Adj. ADC sample = (samplen+1)*(cycle/2) = (samplen+1)*4us -> samplen = 1
 // This function sets up the ADC, including setting resolution and ADC sample rate
 
-void aDCSetup() {
+void ADC_setup() {
     // set vref for ADC to VCC
     REG_ADC_REFCTRL = ADC_REFCTRL_REFSEL_INTVCC1;
 
     // average control 1 sample
     // samplen = 8
     REG_ADC_AVGCTRL |= ADC_AVGCTRL_SAMPLENUM_1;
-    REG_ADC_SAMPCTRL = ADC_SAMPCTRL_SAMPLEN(8); 
+    REG_ADC_SAMPCTRL = ADC_SAMPCTRL_SAMPLEN(1); 
   
     // Input control and input scan, gain 0, positive to A0, negative to gnd
-    REG_ADC_INPUTCTRL |= ADC_INPUTCTRL_GAIN_1X | ADC_INPUTCTRL_MUXNEG_GND | ADC_INPUTCTRL_MUXPOS_PIN0;
+    REG_ADC_INPUTCTRL |= ADC_INPUTCTRL_GAIN_DIV2 | ADC_INPUTCTRL_MUXNEG_GND | ADC_INPUTCTRL_MUXPOS_PIN0;
     while (REG_ADC_STATUS & ADC_STATUS_SYNCBUSY);
 
     // set the divide factor, 8 bit resolution and freerun mode
@@ -92,7 +92,7 @@ void aDCSetup() {
 // This function sets up an ADC interrupt that is triggered 
 // when an ADC value is out of range of the window
 // input argument is priority of interrupt (0 is highest priority, except RESET, -2 and -1)
-void setUpInterrupt(byte priority) {
+void setupInterrupt(byte priority) {
   
     // enable ADC ready interrupt
     ADC->INTENSET.reg |= ADC_INTENSET_RESRDY; 
@@ -105,13 +105,13 @@ void setUpInterrupt(byte priority) {
 }
 
 // software trigger to start ADC in free run
-void aDCSWTrigger() {
+void ADC_SWTrigger() {
     ADC->SWTRIG.reg |= ADC_SWTRIG_START;
 }
 
 // This function takes out DC offset of AC signal, it assumes that the offset brings signal to zero volts
 // input arguments: array with measured points and size of measurement
-void removeDCOffset(volatile int16_t aDC[], int aSize) {
+void removeDC_Offset(volatile int16_t aDC[], int aSize) {
     // get number of levels in ADC measurement and divide it to aSize to get 0 level
     int avrADC = 0; 
     for (int i = 0; i < aSize; i++) {

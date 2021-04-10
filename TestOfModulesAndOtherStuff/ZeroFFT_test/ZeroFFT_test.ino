@@ -1,5 +1,5 @@
 #include "Adafruit_ZeroFFT.h"
-#define sampleRate 16666
+#define sampleRate 8334
 //sample rate of ADC
 #define dataSize 1024     //used to set number of samples
 #define dataHalfSize 512
@@ -91,59 +91,68 @@ void setup() {
         sampleCounter = 0;
         NVIC_EnableIRQ(ADC_IRQn); 
     }*/
-        while(sampleCounter != dataSize); 
-        NVIC_DisableIRQ(ADC_IRQn);
-        removeDCOffset(ADCVal, dataSize);
-        indexFFT = 0;
-        uint32_t amp = 0;
-        int freq = 0;
-        for (int i = 0; i < dataSize; i++) {
-            SerialUSB.print(ADCVal[i]);
-            SerialUSB.print(", ");
-            amp += abs(ADCVal[i]);
-        }
-        SerialUSB.println();
-        amp >>= 9;
+    /*while(sampleCounter != dataSize); 
+    NVIC_DisableIRQ(ADC_IRQn);
+    removeDCOffset(ADCVal, dataSize);
+    indexFFT = 0;
+    uint32_t amp = 0;
+    int freq = 0;
+    // amplitude
+    for (int i = 0; i < dataSize; i++) {
+        SerialUSB.print(ADCVal[i]);
+        SerialUSB.print(", ");
+        amp += abs(ADCVal[i]);
+    }
+    SerialUSB.println();
+    amp >>= 9;
                 
-        ZeroFFT(ADCVal, dataHalfSize);
-        for (int i=0; i < dataHalfSize; i++){
-            if (ADCVal[i] > ADCVal[indexFFT]) {
-                indexFFT = i;
-            }
-            SerialUSB.print(FFT_BIN(i, sampleRate, dataHalfSize));
-            SerialUSB.print(" Hz: ");
-            SerialUSB.println(ADCVal[i]);
+    ZeroFFT(ADCVal, dataSize);
+    // frequency
+    for (int i=0; i < dataHalfSize; i++){
+        if (ADCVal[i] > ADCVal[indexFFT]) {
+            indexFFT = i;
+            SerialUSB.print("index: ");
+            SerialUSB.println(indexFFT);
         }
-        freq = FFT_BIN(indexFFT, sampleRate, dataHalfSize);
-        SerialUSB.print(amp);
-        SerialUSB.print("-amp ");
-        SerialUSB.print(frequency);
-        SerialUSB.println("-freq");
-        indexFFT = 0;
-        sampleCounter = 0;
-        NVIC_EnableIRQ(ADC_IRQn);
+        SerialUSB.print(FFT_BIN(i, sampleRate, dataHalfSize));
+        SerialUSB.print(" Hz: ");
+        SerialUSB.println(ADCVal[i]);
+    }
+
+    freq = FFT_BIN(indexFFT, sampleRate, dataHalfSize);
+    SerialUSB.print(amp);
+    SerialUSB.print("-amp ");
+    SerialUSB.print(freq);
+    SerialUSB.println("-freq");
+    indexFFT = 0;
+    sampleCounter = 0;
+    NVIC_EnableIRQ(ADC_IRQn);*/
 }
 
 void loop() {
   
-    /*if (sampleCounter == dataSize) { 
+    if (sampleCounter == dataSize) { 
         NVIC_DisableIRQ(ADC_IRQn);
         removeDCOffset(ADCVal, dataSize);
+        indexFFT = 0;
         uint32_t amp = 0;
+        // amplitude
         for (int i = 0; i < dataSize; i++) {
-           amp += abs(ADCVal[i]);
+            //SerialUSB.print(ADCVal[i]);
+            //SerialUSB.print(", ");
+            amp += abs(ADCVal[i]);
         }
-        amp >>= 9;
         
-        ZeroFFT((int16_t*)ADCVal, dataSize);
+        ZeroFFT(ADCVal, dataSize);
+        // frequency
         for (int i=0; i < dataHalfSize; i++){
             if (ADCVal[i] > ADCVal[indexFFT]) {
                 indexFFT = i;
             }
         }
-
-        amplitude += amp;
-        frequency += FFT_BIN(indexFFT, sampleRate, dataSize);
+        
+        amplitude += (amp >> 10);
+        frequency += FFT_BIN(indexFFT, sampleRate, dataHalfSize);
         countFFT++;
         
         if (countFFT == 64) {
@@ -161,7 +170,7 @@ void loop() {
         indexFFT = 0;
         sampleCounter = 0;
         NVIC_EnableIRQ(ADC_IRQn); 
-    }*/
+    }
 }
 
 void clearRegisters() {

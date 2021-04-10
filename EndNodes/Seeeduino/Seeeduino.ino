@@ -8,18 +8,18 @@
 #include "Adafruit_BME680.h"
 #include "BME680_SETUP.hh"
 
-#define sampleRate 12500     //sample rate of ADC
+#define sampleRate 8334     //sample rate of ADC
 #define dataSize 1024        //used to set number of samples
 #define dataHalfSize 512                
 #define gClk 3               //used to define which generic clock we will use for ADC
 #define intPri 0             //used to set interrupt priority for ADC
 #define cDiv 1               //divide factor for generic clock
-#define fftCycles 64
-#define fftCyclesDiv 6
+#define fftCycles 32
+#define fftCyclesDiv 5
 
 char buffer[256]; // lora init buffer
 
-volatile int16_t aDCVal[dataSize];       //array to hold ADC samples
+volatile int16_t ADC_val[dataSize];       //array to hold ADC samples
 volatile uint16_t sampleCounter = 0;  //tracks how many samples we have collected
 uint8_t countFFT = 0;
 uint16_t indexFFT = 0;
@@ -76,28 +76,28 @@ void setup(void) {
     clearRegisters();              // disable ADC and clear CTRLA and CTRLB
     portSetup();                   // setup the ports or pin to make ADC measurement
     genericClockSetup(gClk, cDiv); // setup generic clock and routed it to ADC
-    aDCSetup();                    // set up registers for ADC, input argument sets ADC reference
-    setUpInterrupt(intPri);        // sets up interrupt for ADC and argument assigns priority
-    aDCSWTrigger();                // trigger ADC to start free run mode
+    ADC_setup();                    // set up registers for ADC, input argument sets ADC reference
+    setupInterrupt(intPri);        // sets up interrupt for ADC and argument assigns priority
+    ADC_SWTrigger();                // trigger ADC to start free run mode
     interrupts();
 
-    SerialUSB.begin(115200);
-    while(!SerialUSB);
+    //SerialUSB.begin(115200);
+    //while(!SerialUSB);
  
     lora.init();
     
     memset(buffer, 0, 256);
     lora.getVersion(buffer, 256, 1);
-    SerialUSB.print(buffer); 
+    //SerialUSB.print(buffer); 
     
     memset(buffer, 0, 256);
     lora.getId(buffer, 256, 1);
-    SerialUSB.print(buffer);
+    //SerialUSB.print(buffer);
     
     lora.setKey(nullptr, nullptr, APP_KEY);
     
     lora.setDeciveMode(LWOTAA);
-    lora.setDataRate(DR5, EU868);
+    // lora.setDataRate(DR5, EU868);
     lora.setAdaptiveDataRate(true);
     
     lora.setChannel(0, 868.1);
@@ -108,7 +108,7 @@ void setup(void) {
     lora.setReceiceWindowSecond(869.5, DR3);
     
     lora.setDutyCycle(false);
-    lora.setJoinDutyCycle(false);
+    lora.setJoinDutyCycle(true);
     
     lora.setPower(14);
     
@@ -121,7 +121,8 @@ void setup(void) {
 void loop(void) {   
     uint8_t offset = 1;
     testFlag = true; 
-    
+
+    // bme logic
     if (millis() - prevBMEmeasurement >= 60000 || firstLoop || secondLoop) {
         NVIC_DisableIRQ(ADC_IRQn); // stop ADC_IRQ to read from I2C
             if (bme680.performReading()) { 
@@ -162,38 +163,40 @@ void loop(void) {
         }
     }
 
+    // mic logic
     if (sampleCounter == dataSize) { 
         uint16_t amp = 0;
         NVIC_DisableIRQ(ADC_IRQn); // stop ADC_IRQ to fill values in array
-        removeDCOffset(aDCVal, dataSize);
+        removeDC_Offset(ADC_val, dataSize);
+        
+        // amplitude
         for (int i=0; i < dataSize; i++){
-            amp += abs(aDCVal[i]);
+            amp += abs(ADC_val[i]);
         }
         soundMeasurement.amplitude += amp >> 9;
-        ZeroFFT((q15_t*)aDCVal, dataSize);
+
+        // fourier
+        ZeroFFT((q15_t*)ADC_val, dataSize);
         for (int i=0; i < dataHalfSize; i++){
-            if (aDCVal[i] > aDCVal[indexFFT]) {
+            if (ADC_val[i] > ADC_val[indexFFT]) {
                 indexFFT = i;
             }
         }
-        soundMeasurement.frequency += (uint32_t)FFT_BIN(indexFFT, sampleRate, dataSize);
+        soundMeasurement.frequency += (uint32_t)FFT_BIN(indexFFT, sampleRate, dataHalfSize);
         countFFT++;
         
         if (countFFT == fftCycles) {
             soundMeasurement.amplitude >>= fftCyclesDiv;
             soundMeasurement.frequency >>= fftCyclesDiv;
-            //SerialUSB.print(soundMeasurement.amplitude);
-            //SerialUSB.print(" ");
-            //SerialUSB.println(soundMeasurement.frequency); // fourier need corection :-(
-            if (soundMeasurement.amplitude - prevSoundMeasurement.amplitude >= 10
-                    || soundMeasurement.amplitude - prevSoundMeasurement.amplitude <= -10) {
-                //SerialUSB.println(soundMeasurement.amplitude - prevSoundMeasurement.amplitude);
+            
+            if (soundMeasurement.amplitude - prevSoundMeasurement.amplitude >= 35
+                    || soundMeasurement.amplitude - prevSoundMeasurement.amplitude <= -35) {
                 prevSoundMeasurement.amplitude = soundMeasurement.amplitude;
                 ampFlag = true;
             }
-            if (soundMeasurement.frequency - prevSoundMeasurement.frequency >= 45
-                    || soundMeasurement.frequency - prevSoundMeasurement.frequency <= -45) {
-                //SerialUSB.println(soundMeasurement.frequency - prevSoundMeasurement.frequency);
+            
+            if (soundMeasurement.frequency - prevSoundMeasurement.frequency >= 20
+                    || soundMeasurement.frequency - prevSoundMeasurement.frequency <= -20) {
                 prevSoundMeasurement.frequency = soundMeasurement.frequency;
                 freqFlag = true;
             }
@@ -229,15 +232,6 @@ void loop(void) {
         pressFlag = false;
         offset += sizeof(bmeMeasurement.pressure);
         newMessage = true;
-        /*Serial.print("press ");
-        Serial.print(sizeof(bmeMeasurement.pressure));
-        Serial.print(" ");
-        Serial.print(bmeMeasurement.pressure);
-        Serial.print(" ");
-        Serial.println(prevBmeMeasurement.pressure);
-        Serial.println("ha");
-        int test = (packetBuffer[offset-1] << 24) | (packetBuffer[offset-2] << 16) | (packetBuffer[offset-3] << 8) | packetBuffer[offset-4];
-        Serial.println(test);*/
     }
     if (gasFlag) {
         packetBuffer[0] |= (1 << GAS_HEAD);
@@ -269,49 +263,24 @@ void loop(void) {
         testFlag = false;
     }
 
-    bool result = false;
     if (newMessage) { 
         //snprintf((char*)str, 254, "t%d, h%d, p%d, g%d, f%d, a%d, c%d", 
-        //        bmeMeasurement.temp, bmeMeasurement.humidity, bmeMeasurement.pressure, bmeMeasurement.gas, prevSoundMeasurement.frequency, prevSoundMeasurement.amplitude, testCounter);
+                //bmeMeasurement.temp, bmeMeasurement.humidity, bmeMeasurement.pressure, bmeMeasurement.gas, prevSoundMeasurement.frequency, prevSoundMeasurement.amplitude, testCounter);
         
         //SerialUSB.println(str);
         newMessage = false;
         testCounter++;
         NVIC_DisableIRQ(ADC_IRQn); // stop ADC_IRQ while sending messages
-        result = lora.transferPacket(packetBuffer, 100);
+        lora.transferPacket(packetBuffer, offset, 10);
         NVIC_EnableIRQ(ADC_IRQn);  // enable ADC_IRQ again
-        memset(packetBuffer, 0, 32);
-    }
- 
-    if(result) {
-        short length;
-        short rssi;
-        
-        memset(buffer, 0, 256);
-        length = lora.receivePacket(buffer, 256, &rssi);
-        
-        if(length)
-        {
-            SerialUSB.print("Length is: ");
-            SerialUSB.println(length);
-            SerialUSB.print("RSSI is: ");
-            SerialUSB.println(rssi);
-            SerialUSB.print("Data is: ");
-            for(unsigned char i = 0; i < length; i ++)
-            {
-                SerialUSB.print("0x");
-                SerialUSB.print(buffer[i], HEX);
-                SerialUSB.print(" ");
-            }
-            SerialUSB.println();
-        }
+        memset(packetBuffer, 0, offset);
     }
 }
 
 // This ISR is called each time ADC makes a reading
 void ADC_Handler() {
     if(sampleCounter < dataSize) {
-      aDCVal[sampleCounter] = REG_ADC_RESULT;
+      ADC_val[sampleCounter] = REG_ADC_RESULT;
       sampleCounter++;
     }
     // Need to reset interrupt
