@@ -91,7 +91,7 @@ void setup() {
         sampleCounter = 0;
         NVIC_EnableIRQ(ADC_IRQn); 
     }*/
-    /*while(sampleCounter != dataSize); 
+    while(sampleCounter != dataSize); 
     NVIC_DisableIRQ(ADC_IRQn);
     removeDCOffset(ADCVal, dataSize);
     indexFFT = 0;
@@ -126,12 +126,12 @@ void setup() {
     SerialUSB.println("-freq");
     indexFFT = 0;
     sampleCounter = 0;
-    NVIC_EnableIRQ(ADC_IRQn);*/
+    NVIC_EnableIRQ(ADC_IRQn);
 }
 
 void loop() {
   
-    if (sampleCounter == dataSize) { 
+    /*if (sampleCounter == dataSize) { 
         NVIC_DisableIRQ(ADC_IRQn);
         removeDCOffset(ADCVal, dataSize);
         indexFFT = 0;
@@ -153,6 +153,7 @@ void loop() {
         
         amplitude += (amp >> 10);
         frequency += FFT_BIN(indexFFT, sampleRate, dataHalfSize);
+        //SerialUSB.println(frequency);
         countFFT++;
         
         if (countFFT == 64) {
@@ -170,6 +171,43 @@ void loop() {
         indexFFT = 0;
         sampleCounter = 0;
         NVIC_EnableIRQ(ADC_IRQn); 
+    }*/
+    if (sampleCounter == dataSize) { 
+        NVIC_DisableIRQ(ADC_IRQn);
+        removeDCOffset(ADCVal, dataSize);
+        indexFFT = 0;
+        uint32_t amp = 0;
+        int freq = 0;
+        // amplitude
+        for (int i = 0; i < dataSize; i++) {
+            //SerialUSB.print(ADCVal[i]);
+            //SerialUSB.print(", ");
+            amp += abs(ADCVal[i]);
+        }
+        //SerialUSB.println();
+        amp >>= 9;
+                    
+        ZeroFFT(ADCVal, dataSize);
+        // frequency
+        for (int i=0; i < dataHalfSize; i++){
+            if (ADCVal[i] > ADCVal[indexFFT]) {
+                indexFFT = i;
+                //SerialUSB.print("index: ");
+                //SerialUSB.println(indexFFT);
+            }
+            SerialUSB.print(FFT_BIN(i, sampleRate, dataHalfSize));
+            SerialUSB.print(" Hz: ");
+            SerialUSB.println(ADCVal[i]);
+        }
+    
+        freq = FFT_BIN(indexFFT, sampleRate, dataHalfSize);
+        SerialUSB.print(amp);
+        SerialUSB.print("-amp ");
+        SerialUSB.print(freq);
+        SerialUSB.println("-freq");
+        indexFFT = 0;
+        sampleCounter = 0;
+        NVIC_EnableIRQ(ADC_IRQn);
     }
 }
 
