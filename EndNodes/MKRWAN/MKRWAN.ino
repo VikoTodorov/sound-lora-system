@@ -8,18 +8,18 @@
 #include "Adafruit_BME680.h"
 #include "BME680_SETUP.hh"
 
-#define sampleRate 12500     //sample rate of ADC
+#define sampleRate 8334     //sample rate of ADC
 #define dataSize 1024        //used to set number of samples
 #define dataHalfSize 512                
 #define gClk 3               //used to define which generic clock we will use for ADC
 #define intPri 0             //used to set interrupt priority for ADC
 #define cDiv 1               //divide factor for generic clock
-#define fftCycles 64
-#define fftCyclesDiv 6
+#define fftCycles 32
+#define fftCyclesDiv 5
 
 char buffer[256]; // lora init buffer
 
-volatile int16_t aDCVal[dataSize];       //array to hold ADC samples
+volatile int16_t ADC_val[dataSize];      //array to hold ADC samples
 volatile uint16_t sampleCounter = 0;  //tracks how many samples we have collected
 uint8_t countFFT = 0;
 uint16_t indexFFT = 0;
@@ -79,31 +79,34 @@ void setup(void) {
     clearRegisters();              // disable ADC and clear CTRLA and CTRLB
     portSetup();                   // setup the ports or pin to make ADC measurement
     genericClockSetup(gClk, cDiv); // setup generic clock and routed it to ADC
-    aDCSetup();                    // set up registers for ADC, input argument sets ADC reference
-    setUpInterrupt(intPri);        // sets up interrupt for ADC and argument assigns priority
-    aDCSWTrigger();                // trigger ADC to start free run mode
+    ADC_setup();                   // set up registers for ADC, input argument sets ADC reference
+    setupInterrupt(intPri);        // sets up interrupt for ADC and argument assigns priority
+    ADC_SWTrigger();               // trigger ADC to start free run mode
     interrupts();
 
-    SerialUSB.begin(115200);
-    while(!SerialUSB);
+    //SerialUSB.begin(115200);
+    //while(!SerialUSB);
  
     if (!modem.begin(EU868)) {
-        Serial.println("Failed to start module");
+        //Serial.println("Failed to start module");
         while (1) {}
     };
-    Serial.print("Your module version is: ");
-    Serial.println(modem.version());
-    Serial.print("Your device EUI is: ");
-    Serial.println(modem.deviceEUI());
+    //Serial.print("Your module version is: ");
+    //Serial.println(modem.version());
+    //Serial.print("Your device EUI is: ");
+    //Serial.println(modem.deviceEUI());
+    //Serial.print("DataRate is: ");
+    //Serial.println(modem.getDataRate());
     int connected = modem.joinOTAA(APP_EUI, APP_KEY);
-    delay(5000);
-    modem.setPort(3);
-    // Set poll interval to 15 secs.
-    modem.minPollInterval(15);
+    delay(1000);
+
+    // Set poll interval to 10 secs.
+    modem.minPollInterval(10);
     if (!connected) {
         Serial.println("Something went wrong; are you indoor? Move near a window and retry");
         while (1) {}
     }
+    modem.setADR(true);
     delay(1000);
     
     setupBME680(&bme680);
@@ -113,6 +116,7 @@ void loop(void) {
     uint8_t offset = 1;
     testFlag = true; 
     
+    // bme logic
     if (millis() - prevBMEmeasurement >= 60000 || firstLoop || secondLoop) {
         NVIC_DisableIRQ(ADC_IRQn); // stop ADC_IRQ to read from I2C
             if (bme680.performReading()) { 
@@ -133,8 +137,8 @@ void loop(void) {
                 prevBmeMeasurement.pressure = bmeMeasurement.pressure;
                 pressFlag = true;
             }
-            if (prevBmeMeasurement.humidity - bmeMeasurement.humidity >= 1000 
-                    || prevBmeMeasurement.humidity -bmeMeasurement.humidity <= -1000) { // difference in 1 %
+            if (prevBmeMeasurement.humidity - bmeMeasurement.humidity >= 500 
+                    || prevBmeMeasurement.humidity -bmeMeasurement.humidity <= -500) { // difference in 5 %
                 prevBmeMeasurement.humidity = bmeMeasurement.humidity;
                 humFlag = true;
             }
@@ -153,38 +157,40 @@ void loop(void) {
         }
     }
 
+    // mic logic
     if (sampleCounter == dataSize) { 
         uint16_t amp = 0;
         NVIC_DisableIRQ(ADC_IRQn); // stop ADC_IRQ to fill values in array
-        removeDCOffset(aDCVal, dataSize);
+        removeDC_Offset(ADC_val, dataSize);
+        
+        // amplitude
         for (int i=0; i < dataSize; i++){
-            amp += abs(aDCVal[i]);
+            amp += abs(ADC_val[i]);
         }
         soundMeasurement.amplitude += amp >> 9;
-        ZeroFFT((q15_t*)aDCVal, dataSize);
+
+        // fourier
+        ZeroFFT((q15_t*)ADC_val, dataSize);
         for (int i=0; i < dataHalfSize; i++){
-            if (aDCVal[i] > aDCVal[indexFFT]) {
+            if (ADC_val[i] > ADC_val[indexFFT]) {
                 indexFFT = i;
             }
         }
-        soundMeasurement.frequency += (uint32_t)FFT_BIN(indexFFT, sampleRate, dataSize);
+        soundMeasurement.frequency += (uint32_t)FFT_BIN(indexFFT, sampleRate, dataHalfSize);
         countFFT++;
         
         if (countFFT == fftCycles) {
             soundMeasurement.amplitude >>= fftCyclesDiv;
             soundMeasurement.frequency >>= fftCyclesDiv;
-            //SerialUSB.print(soundMeasurement.amplitude);
-            //SerialUSB.print(" ");
-            //SerialUSB.println(soundMeasurement.frequency); // fourier need corection :-(
-            if (soundMeasurement.amplitude - prevSoundMeasurement.amplitude >= 10
-                    || soundMeasurement.amplitude - prevSoundMeasurement.amplitude <= -10) {
-                //SerialUSB.println(soundMeasurement.amplitude - prevSoundMeasurement.amplitude);
+            
+            if (soundMeasurement.amplitude - prevSoundMeasurement.amplitude >= 35
+                    || soundMeasurement.amplitude - prevSoundMeasurement.amplitude <= -35) {
                 prevSoundMeasurement.amplitude = soundMeasurement.amplitude;
                 ampFlag = true;
             }
-            if (soundMeasurement.frequency - prevSoundMeasurement.frequency >= 45
-                    || soundMeasurement.frequency - prevSoundMeasurement.frequency <= -45) {
-                //SerialUSB.println(soundMeasurement.frequency - prevSoundMeasurement.frequency);
+            
+            if (soundMeasurement.frequency - prevSoundMeasurement.frequency >= 20
+                    || soundMeasurement.frequency - prevSoundMeasurement.frequency <= -20) {
                 prevSoundMeasurement.frequency = soundMeasurement.frequency;
                 freqFlag = true;
             }
@@ -202,42 +208,42 @@ void loop(void) {
         packetBuffer[0] |= (1 << TEMP_HEAD);
         memmove(packetBuffer+offset, &bmeMeasurement.temp, sizeof(bmeMeasurement.temp));
         tempFlag = false;
-        offset += 4;
+        offset += sizeof(bmeMeasurement.temp);
         newMessage = true;
     }
     if (humFlag) {
         packetBuffer[0] |= (1 << HUM_HEAD);
         memmove(packetBuffer+offset, &bmeMeasurement.humidity, sizeof(bmeMeasurement.humidity));
         humFlag = false;
-        offset += 4;
+        offset += sizeof(bmeMeasurement.humidity);
         newMessage = true;
     }
     if (pressFlag) {
         packetBuffer[0] |= (1 << PRESS_HEAD);
         memmove(packetBuffer+offset, &bmeMeasurement.pressure, sizeof(bmeMeasurement.pressure));
         pressFlag = false;
-        offset += 4;
+        offset += sizeof(bmeMeasurement.pressure);
         newMessage = true;
     }
     if (gasFlag) {
         packetBuffer[0] |= (1 << GAS_HEAD);
         memmove(packetBuffer+offset, &bmeMeasurement.gas, sizeof(bmeMeasurement.gas));
         gasFlag = false;
-        offset += 4;
+        offset += sizeof(bmeMeasurement.gas);
         newMessage = true;
     }
     if (freqFlag) {
         packetBuffer[0] |= (1 << FREQ_HEAD);
         memmove(packetBuffer+offset, &prevSoundMeasurement.frequency, sizeof(prevSoundMeasurement.frequency));
         freqFlag = false;
-        offset += 4;
+        offset += sizeof(prevSoundMeasurement.frequency);
         newMessage = true;
     }
     if (ampFlag) {
         packetBuffer[0] |= (1 << AMP_HEAD);
         memmove(packetBuffer+offset, &prevSoundMeasurement.amplitude, sizeof(prevSoundMeasurement.amplitude));
         ampFlag = false;
-        offset += 4;
+        offset += sizeof(prevSoundMeasurement.amplitude);
         newMessage = true;
     }
     if (testFlag) {
@@ -250,45 +256,21 @@ void loop(void) {
     if (newMessage) { 
         newMessage = false;
         testCounter++;
-        
+
         NVIC_DisableIRQ(ADC_IRQn); // stop ADC_IRQ while sending messages
         modem.beginPacket();
-        modem.write(packetBuffer);
+        modem.write(packetBuffer, offset);
         result = modem.endPacket(true);
+        delay(8000);
         NVIC_EnableIRQ(ADC_IRQn);  // enable ADC_IRQ again
-        memset(packetBuffer, 0, 32);
-        
-        if (result) {
-            Serial.println("Message sent correctly!");
-        } 
-        else {
-            Serial.println("Error sending message :(");
-        }
-        
-        delay(1000);
-        if (!modem.available()) {
-            Serial.println("No downlink message received at this time.");
-            return;
-        }
-        char rcv[64];
-        int i = 0;
-        while (modem.available()) {
-          rcv[i++] = (char)modem.read();
-        }
-        Serial.print("Received: ");
-        for (unsigned int j = 0; j < i; j++) {
-            Serial.print(rcv[j] >> 4, HEX);
-            Serial.print(rcv[j] & 0xF, HEX);
-            Serial.print(" ");
-        }
-        Serial.println();
+        memset(packetBuffer, 0, offset);
     }
 }
 
 // This ISR is called each time ADC makes a reading
 void ADC_Handler() {
     if(sampleCounter < dataSize) {
-      aDCVal[sampleCounter] = REG_ADC_RESULT;
+      ADC_val[sampleCounter] = REG_ADC_RESULT;
       sampleCounter++;
     }
     // Need to reset interrupt
