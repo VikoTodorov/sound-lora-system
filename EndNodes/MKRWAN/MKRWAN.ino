@@ -54,21 +54,16 @@ bool freqFlag = false;
 bool ampFlag = false;
 bool testFlag = false;
 
-uint8_t TEMP_HEAD = 6;
-uint8_t HUM_HEAD = 5;
-uint8_t PRESS_HEAD = 4;
-uint8_t GAS_HEAD = 3;
-uint8_t FREQ_HEAD = 2;
-uint8_t AMP_HEAD = 1;
-uint8_t TEST_HEAD = 0;
-
-//bool result = false;
+#define TEMP_HEAD 6
+#define HUM_HEAD 5
+#define PRESS_HEAD 4
+#define GAS_HEAD 3
+#define FREQ_HEAD 2
+#define AMP_HEAD 1
+#define TEST_HEAD 0
 
 uint16_t testCounter = 0;
 bool newMessage = false;
-char str[254];
-
-long prevMessage = 0; // used for tests
 
 void ADC_Handler();
 
@@ -91,13 +86,15 @@ void setup(void) {
         //Serial.println("Failed to start module");
         while (1) {}
     };
+    
     //Serial.print("Your module version is: ");
     //Serial.println(modem.version());
     //Serial.print("Your device EUI is: ");
     //Serial.println(modem.deviceEUI());
     //Serial.print("DataRate is: ");
     //Serial.println(modem.getDataRate());
-    int connected = modem.joinOTAA(APP_EUI, APP_KEY);
+    
+    bool connected = modem.joinOTAA(APP_EUI, APP_KEY);
     delay(1000);
 
     // Set poll interval to 10 secs.
@@ -114,7 +111,7 @@ void setup(void) {
 
 void loop(void) {   
     uint8_t offset = 1;
-    testFlag = true; 
+    //testFlag = true; 
     
     // bme logic
     if (millis() - prevBMEmeasurement >= 60000 || firstLoop || secondLoop) {
@@ -234,16 +231,16 @@ void loop(void) {
     }
     if (freqFlag) {
         packetBuffer[0] |= (1 << FREQ_HEAD);
-        memmove(packetBuffer+offset, &prevSoundMeasurement.frequency, sizeof(prevSoundMeasurement.frequency));
+        memmove(packetBuffer+offset, &soundMeasurement.frequency, sizeof(soundMeasurement.frequency));
         freqFlag = false;
-        offset += sizeof(prevSoundMeasurement.frequency);
+        offset += sizeof(soundMeasurement.frequency);
         newMessage = true;
     }
     if (ampFlag) {
         packetBuffer[0] |= (1 << AMP_HEAD);
-        memmove(packetBuffer+offset, &prevSoundMeasurement.amplitude, sizeof(prevSoundMeasurement.amplitude));
+        memmove(packetBuffer+offset, &soundMeasurement.amplitude, sizeof(soundMeasurement.amplitude));
         ampFlag = false;
-        offset += sizeof(prevSoundMeasurement.amplitude);
+        offset += sizeof(soundMeasurement.amplitude);
         newMessage = true;
     }
     if (testFlag) {
