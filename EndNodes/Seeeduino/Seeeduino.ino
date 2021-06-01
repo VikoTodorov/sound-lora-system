@@ -54,17 +54,17 @@ bool freqFlag = false;
 bool ampFlag = false;
 bool testFlag = false;
 
-uint8_t TEMP_HEAD = 6;
-uint8_t HUM_HEAD = 5;
-uint8_t PRESS_HEAD = 4;
-uint8_t GAS_HEAD = 3;
-uint8_t FREQ_HEAD = 2;
-uint8_t AMP_HEAD = 1;
-uint8_t TEST_HEAD = 0;
+#define TEMP_HEAD 6
+#define HUM_HEAD 5
+#define PRESS_HEAD 4
+#define GAS_HEAD 3
+#define FREQ_HEAD 2
+#define AMP_HEAD 1
+#define TEST_HEAD 0
 
 uint16_t testCounter = 0;
 bool newMessage = false;
-char str[254];
+//char str[254];
 
 long prevMessage = 0; // used for tests
 
