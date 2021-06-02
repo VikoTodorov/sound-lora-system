@@ -17,7 +17,7 @@
 #define fftCycles 32
 #define fftCyclesDiv 5
 
-char buffer[256]; // lora init buffer
+//char buffer[256]; // lora init buffer
 
 volatile int16_t ADC_val[dataSize];       //array to hold ADC samples
 volatile uint16_t sampleCounter = 0;  //tracks how many samples we have collected
@@ -85,13 +85,12 @@ void setup(void) {
     //while(!SerialUSB);
  
     lora.init();
-    
-    memset(buffer, 0, 256);
-    lora.getVersion(buffer, 256, 1);
+
+    //memset(buffer, 0, 256);
+    //lora.getVersion(buffer, 256, 1);
     //SerialUSB.print(buffer); 
-    
-    memset(buffer, 0, 256);
-    lora.getId(buffer, 256, 1);
+    //memset(buffer, 0, 256);
+    //lora.getId(buffer, 256, 1);
     //SerialUSB.print(buffer);
     
     lora.setKey(nullptr, nullptr, APP_KEY);
