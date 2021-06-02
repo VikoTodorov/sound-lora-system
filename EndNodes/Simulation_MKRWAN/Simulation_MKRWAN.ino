@@ -56,7 +56,7 @@ void setup() {
     bool connected = modem.joinOTAA(APP_EUI, APP_KEY);
     delay(1000);
     
-    modem.minPollInterval(10);
+    modem.minPollInterval(5);
     if (!connected) {
         Serial.println("Something went wrong; are you indoor? Move near a window and retry");
         while (1) {}
@@ -140,15 +140,15 @@ void loop() {
     bool result = false;
     if (newMessage) { 
         newMessage = false;
-
-        NVIC_DisableIRQ(ADC_IRQn); // stop ADC_IRQ while sending messages
         modem.beginPacket();
         modem.write(packetBuffer, offset);
         result = modem.endPacket(true);
-        delay(8000);
-        NVIC_EnableIRQ(ADC_IRQn);  // enable ADC_IRQ again
         memset(packetBuffer, 0, offset);
     }
-  // put your main code here, to run repeatedly:
+    
+    if (firstLoop) {
+        delay(200000);
+        firstLoop = false;
+    }
 
 }
